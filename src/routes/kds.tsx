@@ -41,18 +41,18 @@ function KDS() {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const { data } = await supabase
-        .from("orders")
+      const { data } = await (supabase as any)
+        .from("pedidos")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
-      if (active && data) setOrders(data as unknown as Order[]);
+      if (active && data) setOrders(data as Order[]);
     };
     load();
 
     const channel = supabase
-      .channel("orders-kds")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => load())
+      .channel("pedidos-kds")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () => load())
       .subscribe();
 
     return () => {
@@ -61,9 +61,9 @@ function KDS() {
     };
   }, []);
 
-  const setStatus = async (id: string, status: string) => {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
-    await supabase.from("orders").update({ status }).eq("id", id);
+  const setStatus = async (id: string, estado: string) => {
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, estado } : o)));
+    await (supabase as any).from("pedidos").update({ estado }).eq("id", id);
   };
 
   return (
@@ -74,31 +74,32 @@ function KDS() {
         {orders.map((o) => (
           <article
             key={o.id}
-            className={`rounded-3xl bg-card p-4 text-card-foreground shadow-card ${o.status === "ready" ? "opacity-50" : ""}`}
+            className={`rounded-3xl bg-card p-4 text-card-foreground shadow-card ${o.estado === "listo" ? "opacity-50" : ""}`}
           >
             <div className="flex items-baseline justify-between">
               <span className="text-3xl font-black text-brand-red">
-                #{String(o.order_number).padStart(2, "0")}
+                #{String(o.numero_pedido).padStart(2, "0")}
               </span>
-              <span className="text-sm font-bold text-muted-foreground">{o.mode}</span>
+              <span className="text-sm font-bold text-muted-foreground">
+                {o.tipo_consumo === "comer_ahora" ? "Comer ahora" : "Para llevar"}
+              </span>
             </div>
-            <p className="mt-2 text-lg font-black">{o.format}</p>
-            <p className="font-bold">{o.cream}</p>
+            <p className="mt-2 text-lg font-black">{FORMATO_LABEL[o.formato] ?? o.formato}</p>
+            <p className="font-bold">{o.crema}</p>
             <p className="text-sm font-bold text-muted-foreground">
-              {(o.toppings ?? []).map((t) => t.name).join(" + ")}
+              {[o.topping_1, o.topping_2].filter(Boolean).join(" + ")}
             </p>
-            {o.wants_photo && (
+            {o.decoracion && (
               <p className="mt-2 inline-block rounded-full bg-primary px-3 py-1 text-xs font-black text-primary-foreground">
                 📸 Añadir decoración
               </p>
             )}
-            <div className="mt-3 flex items-center justify-between">
-              <span className="font-black">{euro(o.total_cents / 100)}</span>
+            <div className="mt-3 flex items-center justify-end">
               <button
-                onClick={() => setStatus(o.id, o.status === "ready" ? "pending" : "ready")}
+                onClick={() => setStatus(o.id, o.estado === "listo" ? "pendiente" : "listo")}
                 className="rounded-full bg-brand-red px-4 py-2 text-sm font-extrabold text-brand-red-foreground"
               >
-                {o.status === "ready" ? "Reabrir" : "Listo"}
+                {o.estado === "listo" ? "Reabrir" : "Listo"}
               </button>
             </div>
           </article>
