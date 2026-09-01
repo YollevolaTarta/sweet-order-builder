@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseYLLT } from "@/lib/supabase-yllt";
 import { CREAMS, FORMATS, TOPPINGS, euro, type Mode } from "@/lib/menu";
 
 export const Route = createFileRoute("/")({
@@ -87,24 +87,27 @@ function Configurator() {
     if (!format || !cream || wantsPhoto === null) return;
     setSending(true);
     setError(null);
-    const { data, error: err } = await supabase
-      .from("orders")
+    const { data, error: err } = await supabaseYLLT
+      .from("pedidos")
       .insert({
-        mode: mode === "ahora" ? "Comer ahora" : "Para llevar",
-        format: `${format.name} (${format.size})`,
-        cream: cream.name,
-        toppings: toppings.map((t) => ({ name: t.name, price: isShake ? 0 : t.price })),
-        wants_photo: wantsPhoto,
-        total_cents: Math.round(total * 100),
+        tipo_consumo: mode === "ahora" ? "comer_ahora" : "para_llevar",
+        formato: format.id === "cake-shake" ? "shake" : format.id === "tarta-lata" ? "lata" : "abierta",
+        crema: cream.name,
+        topping_1: toppings[0]?.name ?? null,
+        topping_2: toppings[1]?.name ?? null,
+        decoracion: wantsPhoto,
+        estado: "pendiente",
+        tipo_pedido: "en_tienda",
+        hora_recogida: null,
       })
-      .select("order_number")
+      .select("numero_pedido")
       .single();
     setSending(false);
     if (err || !data) {
       setError("No hemos podido enviar el pedido. Inténtalo otra vez.");
       return;
     }
-    setOrderNumber(data.order_number);
+    setOrderNumber(data.numero_pedido);
   };
 
   if (orderNumber !== null) {
