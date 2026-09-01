@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseYLLT } from "@/lib/supabase-yllt";
 import { CREAMS, FORMATS, TOPPINGS, euro, type Mode } from "@/lib/menu";
 
 export const Route = createFileRoute("/")({
@@ -87,7 +87,7 @@ function Configurator() {
     if (!format || !cream || wantsPhoto === null) return;
     setSending(true);
     setError(null);
-    const { data, error: err } = await (supabase as any)
+    const { data, error: err } = await supabaseYLLT
       .from("pedidos")
       .insert({
         tipo_consumo: mode === "ahora" ? "comer_ahora" : "para_llevar",
