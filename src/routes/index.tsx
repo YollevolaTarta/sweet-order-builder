@@ -204,6 +204,7 @@ function Configurator() {
                   onClick={() => {
                     setFormatId(f.id);
                     setToppingIds([]);
+                    setWantsPhoto(f.id === "tarta-abierta" ? null : false);
                   }}
                   className={`card-soft flex items-center gap-4 p-4 text-left ${formatId === f.id ? "card-selected animate-pop" : ""}`}
                 >
