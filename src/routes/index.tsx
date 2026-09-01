@@ -94,7 +94,8 @@ function Configurator() {
   };
 
   const confirm = async () => {
-    if (!format || !cream || wantsPhoto === null) return;
+    if (!format || !cream) return;
+    if (isOpenTart && wantsPhoto === null) return;
     setSending(true);
     setError(null);
     const { data, error: err } = await supabaseYLLT
@@ -105,7 +106,7 @@ function Configurator() {
         crema: cream.name,
         topping_1: toppings[0]?.name ?? null,
         topping_2: toppings[1]?.name ?? null,
-        decoracion: wantsPhoto,
+        decoracion: isOpenTart ? wantsPhoto : false,
         estado: "pendiente",
         tipo_pedido: "en_tienda",
         hora_recogida: null,
