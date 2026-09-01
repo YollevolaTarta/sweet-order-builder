@@ -50,6 +50,7 @@ function Configurator() {
   const format = FORMATS.find((f) => f.id === formatId) ?? null;
   const cream = CREAMS.find((c) => c.id === creamId) ?? null;
   const isShake = format?.id === "cake-shake";
+  const isOpenTart = format?.id === "tarta-abierta";
   const toppings = toppingIds
     .map((id) => TOPPINGS.find((t) => t.id === id)!)
     .filter(Boolean);
@@ -59,6 +60,15 @@ function Configurator() {
     if (isShake) return format.basePrice;
     return format.basePrice + toppings.reduce((s, t) => s + t.price, 0);
   }, [format, isShake, toppings]);
+
+  const stepInfo = useMemo(() => {
+    if (isOpenTart) {
+      const label = step + 1;
+      return { label, total: 6, progress: (label / 6) * 100 };
+    }
+    const label = step < 4 ? step + 1 : step;
+    return { label, total: 5, progress: (label / 5) * 100 };
+  }, [isOpenTart, step]);
 
   const canContinue = (() => {
     switch (step) {
