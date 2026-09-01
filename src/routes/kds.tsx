@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { euro } from "@/lib/menu";
+
 
 export const Route = createFileRoute("/kds")({
   head: () => ({
