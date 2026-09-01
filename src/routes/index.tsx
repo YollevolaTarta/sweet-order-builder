@@ -340,7 +340,10 @@ function Configurator() {
         <div className="mx-auto flex max-w-2xl items-center gap-3">
           {step > 0 && (
             <button
-              onClick={() => setStep((s) => (s - 1) as Step)}
+              onClick={() => {
+                if (step === 5 && !isOpenTart) setStep(3);
+                else setStep((s) => (s - 1) as Step);
+              }}
               className="rounded-full border-2 border-border px-5 py-4 text-base font-extrabold"
             >
               Atrás
@@ -353,7 +356,10 @@ function Configurator() {
           {step < 5 ? (
             <button
               disabled={!canContinue}
-              onClick={() => setStep((s) => (s + 1) as Step)}
+              onClick={() => {
+                if (step === 3) setStep(isOpenTart ? 4 : 5);
+                else setStep((s) => (s + 1) as Step);
+              }}
               className="rounded-full bg-primary px-8 py-4 text-lg font-extrabold text-primary-foreground shadow-card transition disabled:opacity-40"
             >
               Seguir
