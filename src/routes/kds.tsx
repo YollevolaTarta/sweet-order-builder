@@ -18,15 +18,21 @@ export const Route = createFileRoute("/kds")({
 
 type Order = {
   id: string;
-  order_number: number;
-  mode: string;
-  format: string;
-  cream: string;
-  toppings: { name: string; price: number }[];
-  wants_photo: boolean;
-  total_cents: number;
-  status: string;
+  numero_pedido: number;
+  tipo_consumo: string;
+  formato: string;
+  crema: string;
+  topping_1: string | null;
+  topping_2: string | null;
+  decoracion: boolean;
+  estado: string;
   created_at: string;
+};
+
+const FORMATO_LABEL: Record<string, string> = {
+  abierta: "Tarta abierta",
+  lata: "Tarta en lata",
+  shake: "Cake shake",
 };
 
 function KDS() {
