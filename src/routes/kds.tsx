@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabaseYLLT } from "@/lib/supabase-yllt";
 
 
 export const Route = createFileRoute("/kds")({
@@ -41,7 +41,7 @@ function KDS() {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabaseYLLT
         .from("pedidos")
         .select("*")
         .order("created_at", { ascending: false })
@@ -50,20 +50,20 @@ function KDS() {
     };
     load();
 
-    const channel = supabase
+    const channel = supabaseYLLT
       .channel("pedidos-kds")
       .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () => load())
       .subscribe();
 
     return () => {
       active = false;
-      supabase.removeChannel(channel);
+      supabaseYLLT.removeChannel(channel);
     };
   }, []);
 
   const setStatus = async (id: string, estado: string) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, estado } : o)));
-    await (supabase as any).from("pedidos").update({ estado }).eq("id", id);
+    await supabaseYLLT.from("pedidos").update({ estado }).eq("id", id);
   };
 
   return (
