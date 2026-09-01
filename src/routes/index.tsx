@@ -153,14 +153,14 @@ function Configurator() {
         <span className="text-sm font-black tracking-tight">
           Yo Llevo <span className="text-brand-red">la Tarta</span>
         </span>
-        <span className="text-xs font-bold text-muted-foreground">Paso {step} de 5</span>
+        <span className="text-xs font-bold text-muted-foreground">Paso {stepInfo.label} de {stepInfo.total}</span>
       </header>
 
       <div className="px-5 pt-3">
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-primary transition-all duration-300"
-            style={{ width: `${((step + 1) / 6) * 100}%` }}
+            style={{ width: `${stepInfo.progress}%` }}
           />
         </div>
       </div>
