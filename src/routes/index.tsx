@@ -50,6 +50,7 @@ function Configurator() {
   const format = FORMATS.find((f) => f.id === formatId) ?? null;
   const cream = CREAMS.find((c) => c.id === creamId) ?? null;
   const isShake = format?.id === "cake-shake";
+  const isOpenTart = format?.id === "tarta-abierta";
   const toppings = toppingIds
     .map((id) => TOPPINGS.find((t) => t.id === id)!)
     .filter(Boolean);
@@ -59,6 +60,15 @@ function Configurator() {
     if (isShake) return format.basePrice;
     return format.basePrice + toppings.reduce((s, t) => s + t.price, 0);
   }, [format, isShake, toppings]);
+
+  const stepInfo = useMemo(() => {
+    if (isOpenTart) {
+      const label = step + 1;
+      return { label, total: 6, progress: (label / 6) * 100 };
+    }
+    const label = step < 4 ? step + 1 : step;
+    return { label, total: 5, progress: (label / 5) * 100 };
+  }, [isOpenTart, step]);
 
   const canContinue = (() => {
     switch (step) {
@@ -84,7 +94,8 @@ function Configurator() {
   };
 
   const confirm = async () => {
-    if (!format || !cream || wantsPhoto === null) return;
+    if (!format || !cream) return;
+    if (isOpenTart && wantsPhoto === null) return;
     setSending(true);
     setError(null);
     const { data, error: err } = await supabaseYLLT
@@ -95,7 +106,7 @@ function Configurator() {
         crema: cream.name,
         topping_1: toppings[0]?.name ?? null,
         topping_2: toppings[1]?.name ?? null,
-        decoracion: wantsPhoto,
+        decoracion: isOpenTart ? wantsPhoto : false,
         estado: "pendiente",
         tipo_pedido: "en_tienda",
         hora_recogida: null,
@@ -142,14 +153,14 @@ function Configurator() {
         <span className="text-sm font-black tracking-tight">
           Yo Llevo <span className="text-brand-red">la Tarta</span>
         </span>
-        <span className="text-xs font-bold text-muted-foreground">Paso {step} de 5</span>
+        <span className="text-xs font-bold text-muted-foreground">Paso {stepInfo.label} de {stepInfo.total}</span>
       </header>
 
       <div className="px-5 pt-3">
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-primary transition-all duration-300"
-            style={{ width: `${((step + 1) / 6) * 100}%` }}
+            style={{ width: `${stepInfo.progress}%` }}
           />
         </div>
       </div>
@@ -193,6 +204,7 @@ function Configurator() {
                   onClick={() => {
                     setFormatId(f.id);
                     setToppingIds([]);
+                    setWantsPhoto(f.id === "tarta-abierta" ? null : false);
                   }}
                   className={`card-soft flex items-center gap-4 p-4 text-left ${formatId === f.id ? "card-selected animate-pop" : ""}`}
                 >
@@ -328,7 +340,10 @@ function Configurator() {
         <div className="mx-auto flex max-w-2xl items-center gap-3">
           {step > 0 && (
             <button
-              onClick={() => setStep((s) => (s - 1) as Step)}
+              onClick={() => {
+                if (step === 5 && !isOpenTart) setStep(3);
+                else setStep((s) => (s - 1) as Step);
+              }}
               className="rounded-full border-2 border-border px-5 py-4 text-base font-extrabold"
             >
               Atrás
@@ -341,7 +356,10 @@ function Configurator() {
           {step < 5 ? (
             <button
               disabled={!canContinue}
-              onClick={() => setStep((s) => (s + 1) as Step)}
+              onClick={() => {
+                if (step === 3) setStep(isOpenTart ? 4 : 5);
+                else setStep((s) => (s + 1) as Step);
+              }}
               className="rounded-full bg-primary px-8 py-4 text-lg font-extrabold text-primary-foreground shadow-card transition disabled:opacity-40"
             >
               Seguir
