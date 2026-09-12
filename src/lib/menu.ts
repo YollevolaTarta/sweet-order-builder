@@ -48,21 +48,39 @@ export const CREAMS: Cream[] = [
   { id: "basque", name: "Basque cheesecake", desc: "Cremosa con toque salado", color: "oklch(0.85 0.08 75)" },
 ];
 
-export type Topping = { id: string; name: string; price: number; desc: string; color: string };
+export type ToppingCategory = "mermeladas" | "frutos-secos" | "mousses";
+
+export type Topping = {
+  id: string;
+  name: string;
+  price: number;
+  category: ToppingCategory;
+  color: string;
+};
+
+export const TOPPING_CATEGORIES: { id: ToppingCategory; name: string; priceLabel: string }[] = [
+  { id: "mermeladas", name: "Mermeladas", priceLabel: "1€" },
+  { id: "frutos-secos", name: "Cremas de frutos secos", priceLabel: "1€" },
+  { id: "mousses", name: "Mousses", priceLabel: "2€" },
+];
 
 export const TOPPINGS: Topping[] = [
-  { id: "fresa", name: "Mermelada de fresa", price: 1, desc: "Dulce y jugosa", color: "oklch(0.68 0.19 20)" },
-  { id: "frambuesa", name: "Mermelada de frambuesa", price: 1, desc: "Ácida y viva", color: "oklch(0.6 0.2 10)" },
-  { id: "mango", name: "Mermelada de mango", price: 1, desc: "Tropical y dulce", color: "oklch(0.8 0.16 75)" },
-  { id: "maracuya", name: "Mermelada de maracuyá", price: 1, desc: "Exótica y ácida", color: "oklch(0.85 0.15 90)" },
-  { id: "nuez", name: "Crema de nuez", price: 1, desc: "Tostada y suave", color: "oklch(0.6 0.06 60)" },
-  { id: "almendra", name: "Crema de almendra", price: 1, desc: "Delicada y dulce", color: "oklch(0.82 0.05 70)" },
-  { id: "avellana", name: "Crema de avellana", price: 1, desc: "Clásica e intensa", color: "oklch(0.5 0.07 55)" },
-  { id: "pecana", name: "Crema de pecana", price: 1, desc: "Caramelizada y densa", color: "oklch(0.55 0.08 50)" },
-  { id: "pistacho", name: "Crema de pistacho", price: 2, desc: "Fina y muy aromática", color: "oklch(0.78 0.13 140)" },
-  { id: "cafe", name: "Ganache de café", price: 2, desc: "Tostada y profunda", color: "oklch(0.42 0.05 55)" },
-  { id: "matcha", name: "Ganache de matcha", price: 2, desc: "Herbal y elegante", color: "oklch(0.72 0.12 150)" },
-  { id: "frutas", name: "Ganache de frutas", price: 2, desc: "5 sabores en uno", color: "oklch(0.7 0.16 350)" },
+  { id: "temporada", name: "Mermeladas de temporada", price: 1, category: "mermeladas", color: "oklch(0.72 0.18 18)" },
+  { id: "almendra", name: "Almendra", price: 1, category: "frutos-secos", color: "oklch(0.82 0.05 70)" },
+  { id: "avellana", name: "Avellana", price: 1, category: "frutos-secos", color: "oklch(0.5 0.07 55)" },
+  { id: "pistacho", name: "Pistacho", price: 2, category: "frutos-secos", color: "oklch(0.78 0.13 140)" },
+  { id: "pecan", name: "Pecan", price: 1, category: "frutos-secos", color: "oklch(0.55 0.08 50)" },
+  { id: "nuez", name: "Nuez", price: 1, category: "frutos-secos", color: "oklch(0.6 0.06 60)" },
+  { id: "blue", name: "Blue", price: 2, category: "mousses", color: "oklch(0.68 0.1 240)" },
+  { id: "matcha", name: "Matcha", price: 2, category: "mousses", color: "oklch(0.72 0.12 150)" },
+  { id: "cafe", name: "Café", price: 2, category: "mousses", color: "oklch(0.42 0.05 55)" },
+  { id: "chocolate-blanco-lavanda", name: "Chocolate blanco y lavanda", price: 2, category: "mousses", color: "oklch(0.88 0.06 305)" },
+  { id: "chocolate", name: "Chocolate", price: 2, category: "mousses", color: "oklch(0.38 0.06 50)" },
+  { id: "pitaya", name: "Pitaya", price: 2, category: "mousses", color: "oklch(0.68 0.2 350)" },
+  { id: "mango", name: "Mango", price: 2, category: "mousses", color: "oklch(0.8 0.16 75)" },
+  { id: "limon", name: "Limón", price: 2, category: "mousses", color: "oklch(0.9 0.16 95)" },
+  { id: "cereza", name: "Cereza", price: 2, category: "mousses", color: "oklch(0.58 0.21 20)" },
+  { id: "arandanos", name: "Arándanos", price: 2, category: "mousses", color: "oklch(0.5 0.16 285)" },
 ];
 
 export const euro = (n: number) => `${n.toFixed(2).replace(".", ",")}€`;

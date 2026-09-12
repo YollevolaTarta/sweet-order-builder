@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { supabaseYLLT } from "@/lib/supabase-yllt";
-import { CREAMS, FORMATS, TOPPINGS, euro, type Mode } from "@/lib/menu";
+import { Check, Play } from "lucide-react";
+import { CREAMS, FORMATS, TOPPINGS, TOPPING_CATEGORIES, euro, type Mode } from "@/lib/menu";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -52,8 +53,8 @@ function Configurator() {
   const isShake = format?.id === "cake-shake";
   const isOpenTart = format?.id === "tarta-abierta";
   const toppings = toppingIds
-    .map((id) => TOPPINGS.find((t) => t.id === id)!)
-    .filter(Boolean);
+    .map((id) => TOPPINGS.find((t) => t.id === id))
+    .filter((topping) => topping !== undefined);
 
   const total = useMemo(() => {
     if (!format) return 0;
@@ -248,34 +249,56 @@ function Configurator() {
 
         {step === 3 && (
           <>
-            <h1 className="text-3xl font-black leading-tight">Elige tu topping</h1>
-            <p className="mb-4 text-sm font-bold text-muted-foreground">
+            <h1 className="text-3xl font-black leading-tight">Elige tus toppings</h1>
+            <p className="mb-6 text-sm font-bold text-muted-foreground">
               {isShake ? "Elige exactamente 2 — incluidos en el precio" : "Mínimo 1, máximo 2"}
             </p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {TOPPINGS.map((t) => {
-                const selected = toppingIds.includes(t.id);
-                const disabled = !selected && toppingIds.length >= 2;
-                return (
-                  <button
-                    key={t.id}
-                    disabled={disabled}
-                    onClick={() => toggleTopping(t.id)}
-                    className={`card-soft p-2 text-left ${selected ? "card-selected animate-pop" : ""} ${disabled ? "opacity-40" : ""}`}
-                  >
-                    <Swatch color={t.color} label={t.name} className="mb-2 h-16 w-full p-1" />
-                    <p className="text-sm font-black leading-tight">{t.name}</p>
-                    <p className="text-[11px] font-semibold text-muted-foreground">{t.desc}</p>
-                    {!isShake && (
-                      <span
-                        className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-extrabold ${t.price === 2 ? "bg-brand-red text-brand-red-foreground" : "bg-accent text-accent-foreground"}`}
-                      >
-                        {euro(t.price)}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+            <div className="space-y-7">
+              {TOPPING_CATEGORIES.map((category) => (
+                <section key={category.id} aria-labelledby={`category-${category.id}`}>
+                  <div className="mb-3 flex items-baseline gap-2">
+                    <h2 id={`category-${category.id}`} className="text-xl font-black">
+                      {category.name}
+                    </h2>
+                    {!isShake && <span className="text-sm font-extrabold text-brand-red">— {category.priceLabel}</span>}
+                  </div>
+                  <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
+                    {TOPPINGS.filter((topping) => topping.category === category.id).map((topping) => {
+                      const selected = toppingIds.includes(topping.id);
+                      const disabled = !selected && toppingIds.length >= 2;
+                      return (
+                        <button
+                          key={topping.id}
+                          type="button"
+                          aria-pressed={selected}
+                          disabled={disabled}
+                          onClick={() => toggleTopping(topping.id)}
+                          className={`card-soft relative w-40 shrink-0 snap-start overflow-hidden p-2 text-left disabled:cursor-not-allowed ${selected ? "card-selected animate-pop" : ""} ${disabled ? "opacity-40" : ""}`}
+                        >
+                          <span
+                            className="relative mb-3 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl"
+                            style={{ backgroundColor: topping.color }}
+                            aria-hidden="true"
+                          >
+                            <span className="flex size-9 items-center justify-center rounded-full bg-card/85 text-foreground shadow-card">
+                              <Play className="size-4 fill-current" />
+                            </span>
+                            {selected && (
+                              <span className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                <Check className="size-4 stroke-[3]" />
+                              </span>
+                            )}
+                          </span>
+                          <span className="block min-h-10 text-sm font-black leading-tight">{topping.name}</span>
+                          {!isShake && (
+                            <span className="mt-2 block text-sm font-black text-brand-red">{euro(topping.price)}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
             </div>
           </>
         )}
