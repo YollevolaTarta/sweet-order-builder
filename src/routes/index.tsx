@@ -7,7 +7,7 @@ import {
   type Pack,
   type Receta,
 } from "@/lib/supabase-yllt";
-import { FORMATS, STORE_ID, euro } from "@/lib/menu";
+import { CREAMS, FORMATS, STORE_ID, TOPPINGS, euro } from "@/lib/menu";
 import {
   CatalogoPicker,
   CremaPicker,
