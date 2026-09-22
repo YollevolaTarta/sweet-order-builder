@@ -23,6 +23,10 @@ type Linea = {
   crema: string;
   topping_1: string | null;
   topping_2: string | null;
+  receta: string | null;
+  pack_id: number | null;
+  pack_grupo: string | null;
+  packs: { nombre: string } | null;
   foto: boolean;
 };
 
