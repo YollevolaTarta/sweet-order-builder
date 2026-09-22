@@ -1,5 +1,3 @@
-export type Mode = "ahora" | "llevar";
-
 export type Format = {
   id: string;
   name: string;
@@ -7,8 +5,9 @@ export type Format = {
   basePrice: number;
   note?: string;
   color: string;
-  modes: Mode[];
 };
+
+export const STORE_ID = "Bilbao_CascoViejo";
 
 export const FORMATS: Format[] = [
   {
@@ -17,7 +16,6 @@ export const FORMATS: Format[] = [
     size: "160 g",
     basePrice: 4.9,
     color: "oklch(0.92 0.06 60)",
-    modes: ["ahora"],
   },
   {
     id: "tarta-lata",
@@ -25,7 +23,6 @@ export const FORMATS: Format[] = [
     size: "160 g",
     basePrice: 4.9,
     color: "oklch(0.88 0.05 250)",
-    modes: ["ahora", "llevar"],
   },
   {
     id: "cake-shake",
@@ -34,7 +31,6 @@ export const FORMATS: Format[] = [
     basePrice: 7.5,
     note: "2 toppings incluidos",
     color: "oklch(0.88 0.07 20)",
-    modes: ["ahora", "llevar"],
   },
 ];
 

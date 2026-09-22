@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { supabaseYLLT } from "@/lib/supabase-yllt";
 import { Check, Play } from "lucide-react";
-import { CREAMS, FORMATS, TOPPINGS, TOPPING_CATEGORIES, euro, type Mode } from "@/lib/menu";
+import { CREAMS, FORMATS, STORE_ID, TOPPINGS, TOPPING_CATEGORIES, euro } from "@/lib/menu";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -39,7 +39,6 @@ function Swatch({ color, label, className = "" }: { color: string; label: string
 
 function Configurator() {
   const [step, setStep] = useState<Step>(0);
-  const [mode, setMode] = useState<Mode | null>(null);
   const [formatId, setFormatId] = useState<string | null>(null);
   const [creamId, setCreamId] = useState<string | null>(null);
   const [toppingIds, setToppingIds] = useState<string[]>([]);
@@ -64,17 +63,16 @@ function Configurator() {
 
   const stepInfo = useMemo(() => {
     if (isOpenTart) {
-      const label = step + 1;
-      return { label, total: 6, progress: (label / 6) * 100 };
+      return { label: step, total: 5, progress: (step / 5) * 100 };
     }
-    const label = step < 4 ? step + 1 : step;
-    return { label, total: 5, progress: (label / 5) * 100 };
+    const label = step === 5 ? 4 : step;
+    return { label, total: 4, progress: (label / 4) * 100 };
   }, [isOpenTart, step]);
 
   const canContinue = (() => {
     switch (step) {
       case 0:
-        return !!mode;
+        return true;
       case 1:
         return !!format;
       case 2:
@@ -102,7 +100,7 @@ function Configurator() {
     const { data, error: err } = await supabaseYLLT
       .from("pedidos")
       .insert({
-        tipo_consumo: mode === "ahora" ? "comer_ahora" : "para_llevar",
+        store_id: STORE_ID,
         formato: format.id === "cake-shake" ? "shake" : format.id === "tarta-lata" ? "lata" : "abierta",
         crema: cream.name,
         topping_1: toppings[0]?.name ?? null,
@@ -134,7 +132,6 @@ function Configurator() {
           onClick={() => {
             setOrderNumber(null);
             setStep(0);
-            setMode(null);
             setFormatId(null);
             setCreamId(null);
             setToppingIds([]);
@@ -154,44 +151,36 @@ function Configurator() {
         <span className="text-sm font-black tracking-tight">
           Yo Llevo <span className="text-brand-red">la Tarta</span>
         </span>
-        <span className="text-xs font-bold text-muted-foreground">Paso {stepInfo.label} de {stepInfo.total}</span>
+        {step > 0 && (
+          <span className="text-xs font-bold text-muted-foreground">Paso {stepInfo.label} de {stepInfo.total}</span>
+        )}
       </header>
 
-      <div className="px-5 pt-3">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all duration-300"
-            style={{ width: `${stepInfo.progress}%` }}
-          />
+      {step > 0 && (
+        <div className="px-5 pt-3">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${stepInfo.progress}%` }}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
-      <section key={step} className="animate-step-in flex-1 px-5 pb-40 pt-5">
+      <section
+        key={step}
+        className={`animate-step-in flex-1 px-5 pt-5 ${step === 0 ? "flex flex-col items-center justify-center pb-10 text-center" : "pb-40"}`}
+      >
         {step === 0 && (
           <>
-            <h1 className="mb-5 text-3xl font-black leading-tight">¿Cómo lo quieres?</h1>
-            <div className="grid gap-4">
-              {(
-                [
-                  { id: "ahora", label: "Comer ahora", emoji: "😋" },
-                  { id: "llevar", label: "Para llevar", emoji: "🛍️" },
-                ] as const
-              ).map((o) => (
-                <button
-                  key={o.id}
-                  onClick={() => {
-                    setMode(o.id);
-                    setFormatId(null);
-                    setToppingIds([]);
-                    setStep(1);
-                  }}
-                  className={`card-soft flex items-center gap-4 p-6 text-left ${mode === o.id ? "card-selected animate-pop" : ""}`}
-                >
-                  <span className="text-5xl">{o.emoji}</span>
-                  <span className="text-2xl font-black">{o.label}</span>
-                </button>
-              ))}
-            </div>
+            <h1 className="mb-8 text-4xl font-black leading-tight">Crea tu postre único</h1>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="rounded-full bg-primary px-12 py-5 text-xl font-extrabold text-primary-foreground shadow-card"
+            >
+              Empezar
+            </button>
           </>
         )}
 
@@ -199,7 +188,7 @@ function Configurator() {
           <>
             <h1 className="mb-5 text-3xl font-black leading-tight">Elige tu formato</h1>
             <div className="grid gap-4">
-              {FORMATS.filter((f) => mode && f.modes.includes(mode)).map((f) => (
+              {FORMATS.map((f) => (
                 <button
                   key={f.id}
                   onClick={() => {
@@ -359,9 +348,9 @@ function Configurator() {
         )}
       </section>
 
-      <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-card/95 px-5 pb-5 pt-3 backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center gap-3">
-          {step > 0 && (
+      {step > 0 && (
+        <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-card/95 px-5 pb-5 pt-3 backdrop-blur">
+          <div className="mx-auto flex max-w-2xl items-center gap-3">
             <button
               onClick={() => {
                 if (step === 5 && !isOpenTart) setStep(3);
@@ -371,33 +360,33 @@ function Configurator() {
             >
               Atrás
             </button>
-          )}
-          <div className="flex-1">
-            <p className="text-[11px] font-bold uppercase text-muted-foreground">Total</p>
-            <p className="text-2xl font-black leading-none text-brand-red">{euro(total)}</p>
+            <div className="flex-1">
+              <p className="text-[11px] font-bold uppercase text-muted-foreground">Total</p>
+              <p className="text-2xl font-black leading-none text-brand-red">{euro(total)}</p>
+            </div>
+            {step < 5 ? (
+              <button
+                disabled={!canContinue}
+                onClick={() => {
+                  if (step === 3) setStep(isOpenTart ? 4 : 5);
+                  else setStep((s) => (s + 1) as Step);
+                }}
+                className="rounded-full bg-primary px-8 py-4 text-lg font-extrabold text-primary-foreground shadow-card transition disabled:opacity-40"
+              >
+                Seguir
+              </button>
+            ) : (
+              <button
+                disabled={sending}
+                onClick={confirm}
+                className="rounded-full bg-brand-red px-7 py-4 text-lg font-extrabold text-brand-red-foreground shadow-pop transition disabled:opacity-50"
+              >
+                {sending ? "Enviando…" : "CONFIRMAR"}
+              </button>
+            )}
           </div>
-          {step < 5 ? (
-            <button
-              disabled={!canContinue}
-              onClick={() => {
-                if (step === 3) setStep(isOpenTart ? 4 : 5);
-                else setStep((s) => (s + 1) as Step);
-              }}
-              className="rounded-full bg-primary px-8 py-4 text-lg font-extrabold text-primary-foreground shadow-card transition disabled:opacity-40"
-            >
-              Seguir
-            </button>
-          ) : (
-            <button
-              disabled={sending}
-              onClick={confirm}
-              className="rounded-full bg-brand-red px-7 py-4 text-lg font-extrabold text-brand-red-foreground shadow-pop transition disabled:opacity-50"
-            >
-              {sending ? "Enviando…" : "CONFIRMAR"}
-            </button>
-          )}
-        </div>
-      </footer>
+        </footer>
+      )}
     </main>
   );
 }
