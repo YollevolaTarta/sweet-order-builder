@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { euro } from "@/lib/menu";
 import { CatalogoPicker, Swatch } from "@/components/configurator-parts";
 import { WEB_FORMATS, formatoDe, useWebOrder } from "@/lib/web-order";
 import { precioPorFormato } from "@/lib/supabase-yllt";
+import { itemDePack, itemDeReceta } from "@/lib/cart";
 
 export const Route = createFileRoute("/web/recetas")({
   head: () => ({
@@ -28,27 +30,81 @@ function WebRecetas() {
     recetas,
     packs,
     loading,
-    formatId,
-    setFormatId,
     recetaId,
     setRecetaId,
     packId,
     setPackId,
     setMode,
+    setFormatId,
+    addToCart,
   } = useWebOrder();
 
-  const formato = formatoDe(formatId);
-  const seleccion = recetas.find((r) => r.id === recetaId) ?? packs.find((p) => p.id === packId) ?? null;
+  // Al elegir receta o pack pasamos a una pantalla propia de formato.
+  const [pantalla, setPantalla] = useState<"catalogo" | "formato">("catalogo");
+
+  const receta = recetas.find((r) => r.id === recetaId) ?? null;
+  const pack = packs.find((p) => p.id === packId) ?? null;
+  const seleccion = receta ?? pack;
+
+  if (pantalla === "formato" && seleccion) {
+    return (
+      <main className="flex-1 px-5 pb-10 pt-5">
+        <h1 className="text-3xl font-black leading-tight">Elige el formato</h1>
+        <p className="mb-6 text-sm font-bold text-muted-foreground">{seleccion.nombre}</p>
+        <div className="grid gap-4">
+          {WEB_FORMATS.map((f) => {
+            const fmt = formatoDe(f.id)!;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => {
+                  setFormatId(f.id);
+                  addToCart(
+                    pack ? itemDePack(pack, f, fmt) : itemDeReceta(receta!, f, fmt),
+                  );
+                  setRecetaId(null);
+                  setPackId(null);
+                  navigate({ to: "/web/configura" });
+                }}
+                className="card-soft flex items-center gap-4 p-5 text-left"
+              >
+                <Swatch color={f.color} label={f.name} className="h-20 w-20 shrink-0 p-2" />
+                <div>
+                  <p className="text-xl font-black">{f.name}</p>
+                  <p className="text-sm font-bold text-muted-foreground">{f.size}</p>
+                  <p className="text-lg font-extrabold text-brand-red">
+                    {euro(precioPorFormato(seleccion, fmt))}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setRecetaId(null);
+            setPackId(null);
+            setPantalla("catalogo");
+          }}
+          className="mt-8 rounded-full border-2 border-border px-6 py-4 text-base font-extrabold"
+        >
+          Atrás
+        </button>
+      </main>
+    );
+  }
 
   return (
-    <main className="flex-1 px-5 pb-40 pt-5">
+    <main className="flex-1 px-5 pb-28 pt-5">
       <h1 className="text-3xl font-black leading-tight">Recetas y promociones</h1>
       <p className="mb-6 text-sm font-bold text-muted-foreground">Elige una opción</p>
 
       <CatalogoPicker
         recetas={recetas}
         packs={packs}
-        formato={formato}
+        formato={null}
         recetaId={recetaId}
         packId={packId}
         loading={loading}
@@ -56,43 +112,15 @@ function WebRecetas() {
           setPackId(null);
           setRecetaId(id);
           setMode("recetas");
+          if (id) setPantalla("formato");
         }}
         onSelectPack={(id) => {
           setRecetaId(null);
           setPackId(id);
           setMode("recetas");
+          if (id) setPantalla("formato");
         }}
       />
-
-      {seleccion && (
-        <section className="mt-2" aria-labelledby="sec-formato">
-          <h2 id="sec-formato" className="mb-3 text-xl font-black">
-            Elige el formato
-          </h2>
-          <div className="grid gap-4">
-            {WEB_FORMATS.map((f) => {
-              const fmt = formatoDe(f.id)!;
-              return (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setFormatId(f.id)}
-                  className={`card-soft flex items-center gap-4 p-4 text-left ${formatId === f.id ? "card-selected animate-pop" : ""}`}
-                >
-                  <Swatch color={f.color} label={f.name} className="h-16 w-16 shrink-0 p-2" />
-                  <div>
-                    <p className="text-lg font-black">{f.name}</p>
-                    <p className="text-sm font-bold text-muted-foreground">{f.size}</p>
-                    <p className="text-base font-extrabold text-brand-red">
-                      {euro(precioPorFormato(seleccion, fmt))}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-card/95 px-5 pb-5 pt-3 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center gap-3">
@@ -101,19 +129,6 @@ function WebRecetas() {
             className="rounded-full border-2 border-border px-5 py-4 text-base font-extrabold"
           >
             Atrás
-          </button>
-          <div className="flex-1">
-            <p className="text-[11px] font-bold uppercase text-muted-foreground">Total</p>
-            <p className="text-2xl font-black leading-none text-brand-red">
-              {euro(seleccion && formato ? precioPorFormato(seleccion, formato) : 0)}
-            </p>
-          </div>
-          <button
-            disabled={!seleccion || !formato}
-            onClick={() => navigate({ to: "/web/configura" })}
-            className="rounded-full bg-primary px-8 py-4 text-lg font-extrabold text-primary-foreground shadow-card transition disabled:opacity-40"
-          >
-            Seguir
           </button>
         </div>
       </footer>
