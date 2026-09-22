@@ -44,8 +44,12 @@ function Configurator() {
   const [toppingIds, setToppingIds] = useState<string[]>([]);
   const [wantsPhoto, setWantsPhoto] = useState<boolean | null>(null);
   const [sending, setSending] = useState(false);
-  const [orderNumber, setOrderNumber] = useState<number | null>(null);
+  const [orderLabel, setOrderLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [canal] = useState<"tablet" | "qr">(() => {
+    if (typeof window === "undefined") return "tablet";
+    return new URLSearchParams(window.location.search).get("canal") === "qr" ? "qr" : "tablet";
+  });
 
   const format = FORMATS.find((f) => f.id === formatId) ?? null;
   const cream = CREAMS.find((c) => c.id === creamId) ?? null;
@@ -97,40 +101,56 @@ function Configurator() {
     if (isOpenTart && wantsPhoto === null) return;
     setSending(true);
     setError(null);
+    const formato =
+      format.id === "cake-shake" ? "shake" : format.id === "tarta-lata" ? "lata" : "abierta";
+    const precio = Number(total.toFixed(2));
+    // PROVISIONAL: marcamos el pedido como pagado con metodo_pago 'prueba'
+    // hasta integrar el pago real (máquina/pasarela).
     const { data, error: err } = await supabaseYLLT
       .from("pedidos")
       .insert({
         store_id: STORE_ID,
-        formato: format.id === "cake-shake" ? "shake" : format.id === "tarta-lata" ? "lata" : "abierta",
-        crema: cream.name,
-        topping_1: toppings[0]?.name ?? null,
-        topping_2: toppings[1]?.name ?? null,
-        decoracion: isOpenTart ? wantsPhoto : false,
-        estado: "pendiente",
+        canal,
         tipo_pedido: "en_tienda",
-        hora_recogida: null,
+        estado: "pendiente",
+        pago: "pagado",
+        metodo_pago: "prueba",
+        total: precio,
       })
-      .select("numero_pedido")
+      .select("id, numero_pedido, serie")
       .single();
-    setSending(false);
     if (err || !data) {
+      setSending(false);
       setError("No hemos podido enviar el pedido. Inténtalo otra vez.");
       return;
     }
-    setOrderNumber(data.numero_pedido);
+    const { error: lineErr } = await supabaseYLLT.from("lineas_pedido").insert({
+      pedido_id: data.id,
+      tipo: "personalizada",
+      formato,
+      crema: cream.name,
+      topping_1: toppings[0]?.name ?? null,
+      topping_2: toppings[1]?.name ?? null,
+      foto: isOpenTart ? wantsPhoto === true : false,
+      precio,
+    });
+    setSending(false);
+    if (lineErr) {
+      setError("No hemos podido enviar el pedido. Inténtalo otra vez.");
+      return;
+    }
+    setOrderLabel(`${data.serie}-${String(data.numero_pedido ?? 0).padStart(2, "0")}`);
   };
 
-  if (orderNumber !== null) {
+  if (orderLabel !== null) {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
         <p className="text-lg font-bold text-muted-foreground">Tu pedido es el</p>
-        <p className="animate-pop text-8xl font-black text-brand-red">
-          #{String(orderNumber).padStart(2, "0")}
-        </p>
+        <p className="animate-pop text-8xl font-black text-brand-red">{orderLabel}</p>
         <p className="max-w-xs text-lg font-bold">Te avisamos cuando esté listo 🍰</p>
         <button
           onClick={() => {
-            setOrderNumber(null);
+            setOrderLabel(null);
             setStep(0);
             setFormatId(null);
             setCreamId(null);
