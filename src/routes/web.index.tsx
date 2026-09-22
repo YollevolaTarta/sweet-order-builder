@@ -30,7 +30,7 @@ function WebLanding() {
     reset();
     setMode("recetas");
     setPackId(id);
-    navigate({ to: "/web/configura" });
+    navigate({ to: "/web/configura", search: { vista: undefined } });
   };
 
   return (
@@ -91,7 +91,7 @@ function WebLanding() {
           onClick={() => {
             reset();
             setMode("crear");
-            navigate({ to: "/web/configura" });
+            navigate({ to: "/web/configura", search: { vista: undefined } });
           }}
           className="rounded-full border-2 border-border px-8 py-5 text-lg font-extrabold"
         >
