@@ -597,7 +597,7 @@ function WebConfigura() {
               onClick={goNext}
               className="rounded-full bg-primary px-8 py-4 text-lg font-extrabold text-primary-foreground shadow-card transition disabled:opacity-40"
             >
-              {step === "resumen" ? "Añadir" : "Seguir"}
+              {step === "resumen" ? "Continuar" : "Seguir"}
             </button>
           ) : (
             <button
