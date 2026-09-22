@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabaseYLLT } from "@/lib/supabase-yllt";
+import { STORE_ID } from "@/lib/menu";
 
 
 export const Route = createFileRoute("/kds")({
@@ -16,22 +17,42 @@ export const Route = createFileRoute("/kds")({
   component: KDS,
 });
 
-type Order = {
-  id: string;
-  numero_pedido: number;
+type Linea = {
+  id: number;
   formato: string;
   crema: string;
   topping_1: string | null;
   topping_2: string | null;
-  decoracion: boolean;
+  foto: boolean;
+};
+
+type Order = {
+  id: number;
+  serie: string;
+  numero_pedido: number | null;
+  tipo_pedido: string;
+  franja_recogida: string | null;
   estado: string;
   created_at: string;
+  lineas_pedido: Linea[];
 };
 
 const FORMATO_LABEL: Record<string, string> = {
   abierta: "Tarta abierta",
   lata: "Tarta en lata",
   shake: "Cake shake",
+};
+
+const NEXT_STATUS: Record<string, string> = {
+  pendiente: "preparando",
+  preparando: "listo",
+  listo: "entregado",
+};
+
+const NEXT_LABEL: Record<string, string> = {
+  pendiente: "Preparar",
+  preparando: "Listo",
+  listo: "Entregado",
 };
 
 function KDS() {
@@ -42,7 +63,10 @@ function KDS() {
     const load = async () => {
       const { data } = await supabaseYLLT
         .from("pedidos")
-        .select("*")
+        .select("*, lineas_pedido(*)")
+        .eq("store_id", STORE_ID)
+        .eq("pago", "pagado")
+        .not("estado", "in", "(entregado,cancelado)")
         .order("created_at", { ascending: false })
         .limit(50);
       if (active && data) setOrders(data as Order[]);
@@ -52,6 +76,7 @@ function KDS() {
     const channel = supabaseYLLT
       .channel("pedidos-kds")
       .on("postgres_changes", { event: "*", schema: "public", table: "pedidos" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "lineas_pedido" }, () => load())
       .subscribe();
 
     return () => {
@@ -60,9 +85,15 @@ function KDS() {
     };
   }, []);
 
-  const setStatus = async (id: string, estado: string) => {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, estado } : o)));
-    await supabaseYLLT.from("pedidos").update({ estado }).eq("id", id);
+  const advance = async (id: number, estado: string) => {
+    const next = NEXT_STATUS[estado];
+    if (!next) return;
+    setOrders((prev) =>
+      next === "entregado"
+        ? prev.filter((o) => o.id !== id)
+        : prev.map((o) => (o.id === id ? { ...o, estado: next } : o)),
+    );
+    await supabaseYLLT.from("pedidos").update({ estado: next }).eq("id", id);
   };
 
   return (
@@ -77,25 +108,45 @@ function KDS() {
           >
             <div className="flex items-baseline justify-between">
               <span className="text-3xl font-black text-brand-red">
-                #{String(o.numero_pedido).padStart(2, "0")}
+                {o.serie}-{String(o.numero_pedido ?? 0).padStart(2, "0")}
               </span>
+              {(o.tipo_pedido === "recoger" || o.tipo_pedido === "envio") && (
+                <span className="rounded-full bg-accent px-3 py-1 text-xs font-black">
+                  {o.tipo_pedido === "envio"
+                    ? "Envío"
+                    : `Recoger ${
+                        o.franja_recogida
+                          ? new Date(o.franja_recogida).toLocaleTimeString("es-ES", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "—"
+                      }`}
+                </span>
+              )}
             </div>
-            <p className="mt-2 text-lg font-black">{FORMATO_LABEL[o.formato] ?? o.formato}</p>
-            <p className="font-bold">{o.crema}</p>
-            <p className="text-sm font-bold text-muted-foreground">
-              {[o.topping_1, o.topping_2].filter(Boolean).join(" + ")}
-            </p>
-            {o.decoracion && (
-              <p className="mt-2 inline-block rounded-full bg-primary px-3 py-1 text-xs font-black text-primary-foreground">
-                📸 Añadir decoración
-              </p>
-            )}
+            <div className="mt-2 space-y-3">
+              {(o.lineas_pedido ?? []).map((l) => (
+                <div key={l.id}>
+                  <p className="text-lg font-black">{FORMATO_LABEL[l.formato] ?? l.formato}</p>
+                  <p className="font-bold">{l.crema}</p>
+                  <p className="text-sm font-bold text-muted-foreground">
+                    {[l.topping_1, l.topping_2].filter(Boolean).join(" + ")}
+                  </p>
+                  {l.foto && (
+                    <p className="mt-2 inline-block rounded-full bg-primary px-3 py-1 text-xs font-black text-primary-foreground">
+                      📸 Decoración foto
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
             <div className="mt-3 flex items-center justify-end">
               <button
-                onClick={() => setStatus(o.id, o.estado === "listo" ? "pendiente" : "listo")}
+                onClick={() => advance(o.id, o.estado)}
                 className="rounded-full bg-brand-red px-4 py-2 text-sm font-extrabold text-brand-red-foreground"
               >
-                {o.estado === "listo" ? "Reabrir" : "Listo"}
+                {NEXT_LABEL[o.estado] ?? o.estado}
               </button>
             </div>
           </article>
