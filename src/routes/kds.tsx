@@ -59,6 +59,32 @@ const NEXT_LABEL: Record<string, string> = {
   listo: "Entregado",
 };
 
+type Grupo = { key: string; packNombre: string | null; lineas: Linea[] };
+
+function groupLineas(lineas: Linea[]): Grupo[] {
+  const grupos: Grupo[] = [];
+  const byGrupo = new Map<string, Grupo>();
+  for (const l of lineas) {
+    if (l.pack_grupo) {
+      const existing = byGrupo.get(l.pack_grupo);
+      if (existing) {
+        existing.lineas.push(l);
+        continue;
+      }
+      const grupo: Grupo = {
+        key: l.pack_grupo,
+        packNombre: l.packs?.nombre ?? "Pack",
+        lineas: [l],
+      };
+      byGrupo.set(l.pack_grupo, grupo);
+      grupos.push(grupo);
+    } else {
+      grupos.push({ key: `l-${l.id}`, packNombre: null, lineas: [l] });
+    }
+  }
+  return grupos;
+}
+
 function KDS() {
   const [orders, setOrders] = useState<Order[]>([]);
 
