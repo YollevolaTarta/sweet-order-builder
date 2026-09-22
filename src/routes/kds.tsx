@@ -19,7 +19,6 @@ export const Route = createFileRoute("/kds")({
 type Order = {
   id: string;
   numero_pedido: number;
-  tipo_consumo: string;
   formato: string;
   crema: string;
   topping_1: string | null;
@@ -79,9 +78,6 @@ function KDS() {
             <div className="flex items-baseline justify-between">
               <span className="text-3xl font-black text-brand-red">
                 #{String(o.numero_pedido).padStart(2, "0")}
-              </span>
-              <span className="text-sm font-bold text-muted-foreground">
-                {o.tipo_consumo === "comer_ahora" ? "Comer ahora" : "Para llevar"}
               </span>
             </div>
             <p className="mt-2 text-lg font-black">{FORMATO_LABEL[o.formato] ?? o.formato}</p>
