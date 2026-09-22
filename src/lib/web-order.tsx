@@ -85,6 +85,19 @@ export function WebOrderProvider({ children }: { children: ReactNode }) {
       setRecetaId,
       packId,
       setPackId,
+      cart,
+      addToCart: (item: CartItem) => setCart((prev) => [...prev, item]),
+      removeFromCart: (uid: string) => setCart((prev) => prev.filter((i) => i.uid !== uid)),
+      clearCart: () => setCart([]),
+      // Limpia el postre en curso, pero conserva la cesta.
+      resetSeleccion: () => {
+        setMode(null);
+        setFormatId(null);
+        setCreamId(null);
+        setToppingIds([]);
+        setRecetaId(null);
+        setPackId(null);
+      },
       reset: () => {
         setMode(null);
         setFormatId(null);
@@ -94,7 +107,7 @@ export function WebOrderProvider({ children }: { children: ReactNode }) {
         setPackId(null);
       },
     }),
-    [recetas, packs, loading, mode, formatId, creamId, toppingIds, recetaId, packId],
+    [recetas, packs, loading, mode, formatId, creamId, toppingIds, recetaId, packId, cart],
   );
 
   return <WebOrderContext.Provider value={value}>{children}</WebOrderContext.Provider>;
