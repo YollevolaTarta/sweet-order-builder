@@ -30,10 +30,48 @@ export type LineaPedido = {
   topping_1: string | null;
   topping_2: string | null;
   receta: string | null;
+  receta_id: number | null;
+  pack_id: number | null;
+  pack_grupo: string | null;
   foto: boolean;
   precio: number;
   created_at: string;
 };
+
+export type Receta = {
+  id: number;
+  numero: number;
+  nombre: string;
+  crema: string;
+  topping_1: string | null;
+  topping_2: string | null;
+  activa: boolean;
+  orden: number;
+  precio_lata: number;
+  precio_abierta: number;
+  precio_shake: number;
+};
+
+export type PackReceta = { orden: number; recetas: Receta | null };
+
+export type Pack = {
+  id: number;
+  nombre: string;
+  tamano: number;
+  activo: boolean;
+  orden: number;
+  precio_lata: number;
+  precio_abierta: number;
+  precio_shake: number;
+  pack_recetas: PackReceta[];
+};
+
+export type Formato = "abierta" | "lata" | "shake";
+
+export const precioPorFormato = (
+  item: { precio_abierta: number; precio_lata: number; precio_shake: number },
+  formato: Formato,
+) => (formato === "abierta" ? item.precio_abierta : formato === "lata" ? item.precio_lata : item.precio_shake);
 
 export const supabaseYLLT = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
