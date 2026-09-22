@@ -81,3 +81,31 @@ export function lineasDeItem(item: CartItem, pedidoId: number): Record<string, u
 
 export const lineasDeCesta = (cart: CartItem[], pedidoId: number) =>
   cart.flatMap((i) => lineasDeItem(i, pedidoId));
+
+// Helpers para crear items de cesta a partir del catálogo.
+import { precioPorFormato } from "@/lib/supabase-yllt";
+import type { Format } from "@/lib/menu";
+
+export const itemDeReceta = (receta: Receta, format: Format, formato: Formato): CartItem => ({
+  uid: crypto.randomUUID(),
+  tipo: "receta",
+  formato,
+  formatName: `${format.name} · ${format.size}`,
+  nombre: receta.nombre,
+  detalle: [],
+  precio: Number(precioPorFormato(receta, formato).toFixed(2)),
+  foto: false,
+  receta,
+});
+
+export const itemDePack = (pack: Pack, format: Format, formato: Formato): CartItem => ({
+  uid: crypto.randomUUID(),
+  tipo: "pack",
+  formato,
+  formatName: `${format.name} · ${format.size}`,
+  nombre: `${pack.nombre} · ${pack.tamano} uds`,
+  detalle: packRecetas(pack).map((r) => r.nombre),
+  precio: Number(precioPorFormato(pack, formato).toFixed(2)),
+  foto: false,
+  pack,
+});
