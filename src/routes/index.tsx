@@ -85,7 +85,6 @@ function Configurator() {
   const pack = packs.find((p) => p.id === packId) ?? null;
 
   useEffect(() => {
-    if (step !== "catalogo" || recetas.length > 0 || packs.length > 0 || catalogLoading) return;
     let active = true;
     setCatalogLoading(true);
     (async () => {
@@ -105,7 +104,7 @@ function Configurator() {
     return () => {
       active = false;
     };
-  }, [step, recetas.length, packs.length, catalogLoading]);
+  }, []);
 
   const total = useMemo(() => {
     if (!format) return 0;
