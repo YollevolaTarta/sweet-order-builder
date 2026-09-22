@@ -27,7 +27,7 @@ export const Route = createFileRoute("/web/configura")({
       },
     ],
   }),
-  component: WebConfigura;
+  component: WebConfigura,
 });
 
 type Step = "formato" | "catalogo" | "crema" | "toppings" | "resumen" | "checkout";
