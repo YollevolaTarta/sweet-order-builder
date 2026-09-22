@@ -65,7 +65,7 @@ function WebRecetas() {
                   );
                   setRecetaId(null);
                   setPackId(null);
-                  navigate({ to: "/web/configura" });
+                  navigate({ to: "/web/configura", search: { vista: "cesta" } });
                 }}
                 className="card-soft flex items-center gap-4 p-5 text-left"
               >
