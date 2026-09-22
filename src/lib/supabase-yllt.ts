@@ -9,7 +9,6 @@ export type Pedido = {
   id: string;
   numero_pedido: number;
   store_id: string;
-  tipo_consumo: string;
   formato: string;
   crema: string;
   topping_1: string | null;
