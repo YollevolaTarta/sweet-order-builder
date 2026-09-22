@@ -32,24 +32,15 @@ export const Route = createFileRoute("/")({
 type Step = "intro" | "formato" | "modo" | "crema" | "toppings" | "catalogo" | "foto" | "resumen";
 type Mode = "crear" | "recetas";
 
-function Swatch({ color, label, className = "" }: { color: string; label: string; className?: string }) {
-  return (
-    <div
-      className={`flex items-center justify-center rounded-2xl text-center text-xs font-extrabold uppercase tracking-wide ${className}`}
-      style={{ backgroundColor: color, color: "oklch(0.25 0.03 30)" }}
-      aria-hidden="true"
-    >
-      {label}
-    </div>
-  );
-}
+import {
+  CatalogoPicker,
+  CremaPicker,
+  Row,
+  Swatch,
+  ToppingsPicker,
+  packRecetas,
+} from "@/components/configurator-parts";
 
-const packRecetas = (pack: Pack): Receta[] =>
-  (pack.pack_recetas ?? [])
-    .slice()
-    .sort((a, b) => a.orden - b.orden)
-    .map((pr) => pr.recetas)
-    .filter((r): r is Receta => !!r);
 
 function Configurator() {
   const [step, setStep] = useState<Step>("intro");
@@ -366,7 +357,7 @@ function Configurator() {
             <div className="grid gap-4">
               {[
                 { v: "crear" as Mode, label: "Crea tu tarta", desc: "Elige crema y toppings a tu gusto", emoji: "🎨" },
-                { v: "recetas" as Mode, label: "Recetas y packs", desc: "Combinaciones ya creadas por nosotros", emoji: "⭐" },
+                { v: "recetas" as Mode, label: "Recetas y promociones", desc: "Combinaciones ya creadas por nosotros", emoji: "⭐" },
               ].map((o) => (
                 <button
                   key={o.v}
@@ -390,21 +381,10 @@ function Configurator() {
         {step === "crema" && (
           <>
             <h1 className="mb-5 text-3xl font-black leading-tight">Elige tu crema</h1>
-            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-              {CREAMS.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setCreamId(c.id)}
-                  className={`card-soft w-40 shrink-0 p-3 text-left ${creamId === c.id ? "card-selected animate-pop" : ""}`}
-                >
-                  <Swatch color={c.color} label={c.name} className="mb-2 h-24 w-full p-2" />
-                  <p className="text-base font-black leading-tight">{c.name}</p>
-                  <p className="text-xs font-semibold text-muted-foreground">{c.desc}</p>
-                </button>
-              ))}
-            </div>
+            <CremaPicker creamId={creamId} onSelect={setCreamId} />
           </>
         )}
+
 
         {step === "toppings" && (
           <>
@@ -412,144 +392,34 @@ function Configurator() {
             <p className="mb-6 text-sm font-bold text-muted-foreground">
               {isShake ? "Elige exactamente 2 — incluidos en el precio" : "Mínimo 1, máximo 2"}
             </p>
-            <div className="space-y-7">
-              {TOPPING_CATEGORIES.map((category) => (
-                <section key={category.id} aria-labelledby={`category-${category.id}`}>
-                  <div className="mb-3 flex items-baseline gap-2">
-                    <h2 id={`category-${category.id}`} className="text-xl font-black">
-                      {category.name}
-                    </h2>
-                    {!isShake && <span className="text-sm font-extrabold text-brand-red">— {category.priceLabel}</span>}
-                  </div>
-                  <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
-                    {TOPPINGS.filter((topping) => topping.category === category.id).map((topping) => {
-                      const selected = toppingIds.includes(topping.id);
-                      const disabled = !selected && toppingIds.length >= 2;
-                      return (
-                        <button
-                          key={topping.id}
-                          type="button"
-                          aria-pressed={selected}
-                          disabled={disabled}
-                          onClick={() => toggleTopping(topping.id)}
-                          className={`card-soft relative w-40 shrink-0 snap-start overflow-hidden p-2 text-left disabled:cursor-not-allowed ${selected ? "card-selected animate-pop" : ""} ${disabled ? "opacity-40" : ""}`}
-                        >
-                          <span
-                            className="relative mb-3 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl"
-                            style={{ backgroundColor: topping.color }}
-                            aria-hidden="true"
-                          >
-                            <span className="flex size-9 items-center justify-center rounded-full bg-card/85 text-foreground shadow-card">
-                              <Play className="size-4 fill-current" />
-                            </span>
-                            {selected && (
-                              <span className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                <Check className="size-4 stroke-[3]" />
-                              </span>
-                            )}
-                          </span>
-                          <span className="block min-h-10 text-sm font-black leading-tight">{topping.name}</span>
-                          {!isShake && (
-                            <span className="mt-2 block text-sm font-black text-brand-red">{euro(topping.price)}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
+            <ToppingsPicker toppingIds={toppingIds} isShake={isShake} onToggle={toggleTopping} />
           </>
         )}
+
 
         {step === "catalogo" && (
           <>
-            <h1 className="text-3xl font-black leading-tight">Recetas y packs</h1>
+            <h1 className="text-3xl font-black leading-tight">Recetas y promociones</h1>
             <p className="mb-6 text-sm font-bold text-muted-foreground">Elige una opción</p>
-            {catalogLoading && <p className="font-bold text-muted-foreground">Cargando…</p>}
-
-            {recetas.length > 0 && (
-              <section className="mb-7" aria-labelledby="sec-recetas">
-                <h2 id="sec-recetas" className="mb-3 text-xl font-black">
-                  Recetas
-                </h2>
-                <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
-                  {recetas.map((r) => {
-                    const selected = recetaId === r.id;
-                    return (
-                      <button
-                        key={r.id}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => {
-                          setPackId(null);
-                          setRecetaId(selected ? null : r.id);
-                        }}
-                        className={`card-soft relative w-48 shrink-0 snap-start p-3 text-left ${selected ? "card-selected animate-pop" : ""}`}
-                      >
-                        {selected && (
-                          <span className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                            <Check className="size-4 stroke-[3]" />
-                          </span>
-                        )}
-                        <span className="block min-h-14 pr-6 text-sm font-black leading-tight">{r.nombre}</span>
-                        <span className="mt-2 block text-base font-black text-brand-red">
-                          {euro(precioPorFormato(r, formato))}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            )}
-
-            {[2, 4, 6].map((size) => {
-              const group = packs.filter((p) => p.tamano === size);
-              if (group.length === 0) return null;
-              return (
-                <section key={size} className="mb-7" aria-labelledby={`sec-pack-${size}`}>
-                  <h2 id={`sec-pack-${size}`} className="mb-3 text-xl font-black">
-                    Pack {size}
-                  </h2>
-                  <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
-                    {group.map((p) => {
-                      const selected = packId === p.id;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() => {
-                            setRecetaId(null);
-                            setPackId(selected ? null : p.id);
-                          }}
-                          className={`card-soft relative w-56 shrink-0 snap-start p-3 text-left ${selected ? "card-selected animate-pop" : ""}`}
-                        >
-                          {selected && (
-                            <span className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                              <Check className="size-4 stroke-[3]" />
-                            </span>
-                          )}
-                          <span className="block pr-6 text-base font-black leading-tight">{p.nombre}</span>
-                          <span className="mt-2 block space-y-0.5">
-                            {packRecetas(p).map((r) => (
-                              <span key={r.id} className="block text-xs font-bold text-muted-foreground">
-                                · {r.nombre}
-                              </span>
-                            ))}
-                          </span>
-                          <span className="mt-2 block text-base font-black text-brand-red">
-                            {euro(precioPorFormato(p, formato))}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            })}
+            <CatalogoPicker
+              recetas={recetas}
+              packs={packs}
+              formato={formato}
+              recetaId={recetaId}
+              packId={packId}
+              loading={catalogLoading}
+              onSelectReceta={(id) => {
+                setPackId(null);
+                setRecetaId(id);
+              }}
+              onSelectPack={(id) => {
+                setRecetaId(null);
+                setPackId(id);
+              }}
+            />
           </>
         )}
+
 
         {step === "foto" && (
           <>
@@ -660,11 +530,3 @@ function Configurator() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-sm font-bold text-muted-foreground">{label}</span>
-      <span className="text-right text-sm font-extrabold">{value}</span>
-    </div>
-  );
-}

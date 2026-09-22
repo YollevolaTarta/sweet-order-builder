@@ -63,8 +63,10 @@ export type Pack = {
   precio_lata: number;
   precio_abierta: number;
   precio_shake: number;
+  destacado?: boolean;
   pack_recetas: PackReceta[];
 };
+
 
 export type Formato = "abierta" | "lata" | "shake";
 
