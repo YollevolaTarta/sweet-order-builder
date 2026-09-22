@@ -7,8 +7,15 @@ import {
   type Pack,
   type Receta,
 } from "@/lib/supabase-yllt";
-import { Check, Play } from "lucide-react";
-import { CREAMS, FORMATS, STORE_ID, TOPPINGS, TOPPING_CATEGORIES, euro } from "@/lib/menu";
+import { FORMATS, STORE_ID, euro } from "@/lib/menu";
+import {
+  CatalogoPicker,
+  CremaPicker,
+  Row,
+  Swatch,
+  ToppingsPicker,
+  packRecetas,
+} from "@/components/configurator-parts";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -32,14 +39,6 @@ export const Route = createFileRoute("/")({
 type Step = "intro" | "formato" | "modo" | "crema" | "toppings" | "catalogo" | "foto" | "resumen";
 type Mode = "crear" | "recetas";
 
-import {
-  CatalogoPicker,
-  CremaPicker,
-  Row,
-  Swatch,
-  ToppingsPicker,
-  packRecetas,
-} from "@/components/configurator-parts";
 
 
 function Configurator() {
