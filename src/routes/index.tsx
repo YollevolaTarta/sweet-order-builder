@@ -44,8 +44,12 @@ function Configurator() {
   const [toppingIds, setToppingIds] = useState<string[]>([]);
   const [wantsPhoto, setWantsPhoto] = useState<boolean | null>(null);
   const [sending, setSending] = useState(false);
-  const [orderNumber, setOrderNumber] = useState<number | null>(null);
+  const [orderLabel, setOrderLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [canal] = useState<"tablet" | "qr">(() => {
+    if (typeof window === "undefined") return "tablet";
+    return new URLSearchParams(window.location.search).get("canal") === "qr" ? "qr" : "tablet";
+  });
 
   const format = FORMATS.find((f) => f.id === formatId) ?? null;
   const cream = CREAMS.find((c) => c.id === creamId) ?? null;
