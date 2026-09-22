@@ -76,17 +76,23 @@ function WebConfigura() {
   const receta = recetas.find((r) => r.id === recetaId) ?? null;
   const pack = packs.find((p) => p.id === packId) ?? null;
 
+  // Si se entra con una receta/pack ya elegido (landing o /web/recetas),
+  // no se vuelve a mostrar el catálogo.
+  const [preseleccion] = useState(() => mode === "recetas" && (!!recetaId || !!packId));
+
   const flow: Step[] = useMemo(() => {
     const base: Step[] = ["formato"];
-    if (mode === "recetas") base.push("catalogo");
-    else base.push("crema", "toppings");
+    if (mode === "recetas") {
+      if (!preseleccion) base.push("catalogo");
+    } else base.push("crema", "toppings");
     base.push("resumen", "checkout");
     return base;
-  }, [mode]);
+  }, [mode, preseleccion]);
 
   const [step, setStep] = useState<Step>(() =>
     mode === "recetas" && formatId && (recetaId || packId) ? "resumen" : "formato",
   );
+
 
   useEffect(() => {
     if (!mode) setMode("crear");
