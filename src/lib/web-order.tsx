@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabaseYLLT, type Pack, type Receta, type Formato } from "@/lib/supabase-yllt";
 import { FORMATS } from "@/lib/menu";
+import type { CartItem } from "@/lib/cart";
 
 // En la web solo se venden tarta en lata y cake shake (nunca tarta abierta,
 // por eso no hay pregunta de foto y foto siempre es false).
