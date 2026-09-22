@@ -67,7 +67,7 @@ function KDS() {
         .eq("store_id", STORE_ID)
         .eq("pago", "pagado")
         .not("estado", "in", "(entregado,cancelado)")
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending: true })
         .limit(50);
       if (active && data) setOrders(data as Order[]);
     };
