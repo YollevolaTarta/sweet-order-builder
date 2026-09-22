@@ -119,10 +119,10 @@ function Configurator() {
 
   const flow: Step[] = useMemo(() => {
     const base: Step[] = ["formato", "modo"];
-    if (mode === "crear") base.push("crema", "toppings");
     if (mode === "recetas") base.push("catalogo");
-    if (mode && isOpenTart) base.push("foto");
-    if (mode) base.push("resumen");
+    else base.push("crema", "toppings");
+    if (isOpenTart) base.push("foto");
+    base.push("resumen");
     return base;
   }, [mode, isOpenTart]);
 
