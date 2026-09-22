@@ -9,10 +9,23 @@ import {
   ToppingsPicker,
   packRecetas,
 } from "@/components/configurator-parts";
+import { CartView } from "@/components/cart-view";
 import { WEB_FORMATS, formatoDe, useWebOrder } from "@/lib/web-order";
 import { precioPorFormato, supabaseYLLT } from "@/lib/supabase-yllt";
+import {
+  cartTieneShake,
+  cartTotal,
+  cartUnidades,
+  lineasDeCesta,
+  itemDePack,
+  itemDeReceta,
+  type CartItem,
+} from "@/lib/cart";
 
 export const Route = createFileRoute("/web/configura")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    vista: search["vista"] === "cesta" ? ("cesta" as const) : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Configura tu pedido — Yo Llevo la Tarta" },
@@ -30,7 +43,7 @@ export const Route = createFileRoute("/web/configura")({
   component: WebConfigura,
 });
 
-type Step = "formato" | "catalogo" | "crema" | "toppings" | "resumen" | "checkout";
+type Step = "formato" | "catalogo" | "crema" | "toppings" | "resumen" | "cesta" | "checkout";
 type Entrega = "recoger" | "envio";
 type Franja = { franja: string; libres: number };
 
@@ -47,6 +60,7 @@ const horaLabel = (iso: string) =>
 
 function WebConfigura() {
   const navigate = useNavigate();
+  const { vista } = Route.useSearch();
   const order = useWebOrder();
   const {
     recetas,
@@ -64,6 +78,11 @@ function WebConfigura() {
     setRecetaId,
     packId,
     setPackId,
+    cart,
+    addToCart,
+    removeFromCart,
+    clearCart,
+    resetSeleccion,
   } = order;
 
   const format = WEB_FORMATS.find((f) => f.id === formatId) ?? null;
@@ -76,8 +95,7 @@ function WebConfigura() {
   const receta = recetas.find((r) => r.id === recetaId) ?? null;
   const pack = packs.find((p) => p.id === packId) ?? null;
 
-  // Si se entra con una receta/pack ya elegido (landing o /web/recetas),
-  // no se vuelve a mostrar el catálogo.
+  // Si se entra con una receta/pack ya elegido (landing), no se muestra el catálogo.
   const [preseleccion] = useState(() => mode === "recetas" && (!!recetaId || !!packId));
 
   const flow: Step[] = useMemo(() => {
@@ -85,14 +103,15 @@ function WebConfigura() {
     if (mode === "recetas") {
       if (!preseleccion) base.push("catalogo");
     } else base.push("crema", "toppings");
-    base.push("resumen", "checkout");
+    base.push("resumen", "cesta", "checkout");
     return base;
   }, [mode, preseleccion]);
 
-  const [step, setStep] = useState<Step>(() =>
-    mode === "recetas" && formatId && (recetaId || packId) ? "resumen" : "formato",
-  );
-
+  const [step, setStep] = useState<Step>(() => {
+    if (vista === "cesta") return "cesta";
+    if (mode === "recetas" && formatId && (recetaId || packId)) return "resumen";
+    return "formato";
+  });
 
   useEffect(() => {
     if (!mode) setMode("crear");
@@ -116,7 +135,13 @@ function WebConfigura() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ label: string } | null>(null);
 
-  const numTartas = pack ? pack.tamano : 1;
+  const hayShake = cartTieneShake(cart);
+  const numTartas = Math.max(1, cartUnidades(cart));
+
+  // El cake shake solo se puede recoger en tienda.
+  useEffect(() => {
+    if (hayShake) setEntrega("recoger");
+  }, [hayShake]);
 
   useEffect(() => {
     if (step !== "checkout") return;
@@ -133,7 +158,7 @@ function WebConfigura() {
     };
   }, [step]);
 
-  const total = useMemo(() => {
+  const itemPrecio = useMemo(() => {
     if (!format || !formato) return 0;
     if (mode === "recetas") {
       if (receta) return precioPorFormato(receta, formato);
@@ -143,6 +168,10 @@ function WebConfigura() {
     if (isShake) return format.basePrice;
     return format.basePrice + toppings.reduce((s, t) => s + t.price, 0);
   }, [format, formato, isShake, mode, pack, receta, toppings]);
+
+  const cestaTotal = cartTotal(cart);
+  const enCesta = step === "cesta" || step === "checkout";
+  const footerTotal = enCesta ? cestaTotal : cestaTotal + itemPrecio;
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
   const telOk = /^[+0-9][0-9\s]{7,}$/.test(telefono.trim());
@@ -162,16 +191,50 @@ function WebConfigura() {
         return !!cream;
       case "toppings":
         return isShake ? toppingIds.length === 2 : toppingIds.length >= 1;
+      case "cesta":
+        return cart.length > 0;
       default:
         return true;
     }
   })();
 
+  const buildItem = (): CartItem | null => {
+    if (!format || !formato) return null;
+    if (mode === "recetas" && pack) return itemDePack(pack, format, formato);
+    if (mode === "recetas" && receta) return itemDeReceta(receta, format, formato);
+    if (!cream) return null;
+    return {
+      uid: crypto.randomUUID(),
+      tipo: "personalizada",
+      formato,
+      formatName: `${format.name} · ${format.size}`,
+      nombre: `Tu tarta de ${cream.name}`,
+      detalle: [toppings.map((t) => t.name).join(" + ")].filter(Boolean),
+      precio: Number(itemPrecio.toFixed(2)),
+      // En la web nunca hay tarta abierta, así que no hay decoración con foto.
+      foto: false,
+      crema: cream.name,
+      toppings: toppings.map((t) => t.name),
+    };
+  };
+
   const goNext = () => {
+    if (step === "resumen") {
+      const item = buildItem();
+      if (!item) return;
+      addToCart(item);
+      setStep("cesta");
+      return;
+    }
     const next = flow[index + 1];
     if (next) setStep(next);
   };
+
   const goBack = () => {
+    if (step === "checkout") {
+      setStep("cesta");
+      return;
+    }
     if (index <= 0) {
       navigate({ to: "/web" });
       return;
@@ -190,10 +253,10 @@ function WebConfigura() {
   };
 
   const confirm = async () => {
-    if (!format || !formato || !clienteOk || !entregaOk) return;
+    if (cart.length === 0 || !clienteOk || !entregaOk) return;
     setSending(true);
     setError(null);
-    const precio = Number(total.toFixed(2));
+    const precio = Number(cestaTotal.toFixed(2));
     // PROVISIONAL: marcamos el pedido como pagado con metodo_pago 'prueba'
     // hasta integrar la pasarela de pago real.
     const { data, error: err } = await supabaseYLLT
@@ -217,61 +280,16 @@ function WebConfigura() {
       return;
     }
 
-    // En la web nunca hay tarta abierta, así que no hay decoración con foto.
-    const foto = false;
-    let lineas: Record<string, unknown>[];
-    if (mode === "recetas" && pack) {
-      const grupo = crypto.randomUUID();
-      const items = packRecetas(pack);
-      const unit = Number((precio / (pack.tamano || items.length || 1)).toFixed(2));
-      lineas = items.map((r) => ({
-        pedido_id: data.id,
-        tipo: "pack",
-        formato,
-        pack_id: pack.id,
-        pack_grupo: grupo,
-        receta_id: r.id,
-        receta: r.nombre,
-        crema: r.crema,
-        topping_1: r.topping_1,
-        topping_2: r.topping_2,
-        foto,
-        precio: unit,
-      }));
-    } else if (mode === "recetas" && receta) {
-      lineas = [
-        {
-          pedido_id: data.id,
-          tipo: "receta",
-          formato,
-          receta_id: receta.id,
-          receta: receta.nombre,
-          crema: receta.crema,
-          topping_1: receta.topping_1,
-          topping_2: receta.topping_2,
-          foto,
-          precio,
-        },
-      ];
-    } else {
-      lineas = [
-        {
-          pedido_id: data.id,
-          tipo: "personalizada",
-          formato,
-          crema: cream!.name,
-          topping_1: toppings[0]?.name ?? null,
-          topping_2: toppings[1]?.name ?? null,
-          foto,
-          precio,
-        },
-      ];
-    }
+    const lineas = lineasDeCesta(cart, data.id);
 
     const { error: lineErr } = await supabaseYLLT.from("lineas_pedido").insert(lineas);
     if (lineErr) {
       setSending(false);
-      setError("No hemos podido enviar el pedido. Inténtalo otra vez.");
+      setError(
+        /shake/i.test(lineErr.message)
+          ? "El cake shake solo se puede recoger en tienda. Cambia la entrega a recogida."
+          : "No hemos podido enviar el pedido. Inténtalo otra vez.",
+      );
       return;
     }
 
@@ -295,6 +313,7 @@ function WebConfigura() {
       setError("No hemos podido guardar tus datos. Inténtalo otra vez.");
       return;
     }
+    clearCart();
     setDone({ label: `${data.serie}-${String(data.numero_pedido ?? 0).padStart(2, "0")}` });
   };
 
@@ -415,7 +434,7 @@ function WebConfigura() {
 
         {step === "resumen" && format && (
           <>
-            <h1 className="mb-4 text-3xl font-black leading-tight">Tu pedido</h1>
+            <h1 className="mb-4 text-3xl font-black leading-tight">Tu postre</h1>
             <div className="card-soft space-y-3 p-5">
               <Row label="Formato" value={`${format.name} · ${format.size}`} />
               {mode === "recetas" ? (
@@ -438,9 +457,37 @@ function WebConfigura() {
               )}
               <hr className="border-border" />
               <div className="flex items-center justify-between pt-1">
-                <span className="text-lg font-black">Total</span>
-                <span className="text-2xl font-black text-brand-red">{euro(total)}</span>
+                <span className="text-lg font-black">Este postre</span>
+                <span className="text-2xl font-black text-brand-red">{euro(itemPrecio)}</span>
               </div>
+            </div>
+          </>
+        )}
+
+        {step === "cesta" && (
+          <>
+            <h1 className="mb-1 text-3xl font-black leading-tight">¿Quieres algo más?</h1>
+            <p className="mb-5 text-sm font-bold text-muted-foreground">Estos son tus postres</p>
+            <CartView cart={cart} onRemove={removeFromCart} />
+            <div className="mt-8 grid gap-3">
+              <button
+                type="button"
+                disabled={cart.length === 0}
+                onClick={() => setStep("checkout")}
+                className="rounded-full bg-primary px-8 py-5 text-xl font-extrabold text-primary-foreground shadow-card transition disabled:opacity-40"
+              >
+                Continuar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  resetSeleccion();
+                  navigate({ to: "/web" });
+                }}
+                className="rounded-full border-2 border-border px-8 py-4 text-lg font-extrabold"
+              >
+                Añadir otro postre
+              </button>
             </div>
           </>
         )}
@@ -454,17 +501,26 @@ function WebConfigura() {
                   { v: "recoger" as Entrega, label: "Recoger en tienda", emoji: "🏪" },
                   { v: "envio" as Entrega, label: "Envío a domicilio", emoji: "🚚" },
                 ]
-              ).map((o) => (
-                <button
-                  key={o.v}
-                  type="button"
-                  onClick={() => setEntrega(o.v)}
-                  className={`card-soft p-4 text-left ${entrega === o.v ? "card-selected animate-pop" : ""}`}
-                >
-                  <span className="block text-3xl">{o.emoji}</span>
-                  <span className="mt-1 block text-base font-black leading-tight">{o.label}</span>
-                </button>
-              ))}
+              ).map((o) => {
+                const disabled = o.v === "envio" && hayShake;
+                return (
+                  <button
+                    key={o.v}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => setEntrega(o.v)}
+                    className={`card-soft p-4 text-left ${entrega === o.v ? "card-selected animate-pop" : ""} ${disabled ? "opacity-40" : ""}`}
+                  >
+                    <span className="block text-3xl">{o.emoji}</span>
+                    <span className="mt-1 block text-base font-black leading-tight">{o.label}</span>
+                    {disabled && (
+                      <span className="mt-1 block text-xs font-bold text-muted-foreground">
+                        El cake shake solo se puede recoger en tienda
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {entrega === "recoger" ? (
@@ -533,15 +589,15 @@ function WebConfigura() {
           </button>
           <div className="flex-1">
             <p className="text-[11px] font-bold uppercase text-muted-foreground">Total</p>
-            <p className="text-2xl font-black leading-none text-brand-red">{euro(total)}</p>
+            <p className="text-2xl font-black leading-none text-brand-red">{euro(footerTotal)}</p>
           </div>
-          {step !== "checkout" ? (
+          {step === "cesta" ? null : step !== "checkout" ? (
             <button
               disabled={!canContinue}
               onClick={goNext}
               className="rounded-full bg-primary px-8 py-4 text-lg font-extrabold text-primary-foreground shadow-card transition disabled:opacity-40"
             >
-              Seguir
+              {step === "resumen" ? "Añadir" : "Seguir"}
             </button>
           ) : (
             <button

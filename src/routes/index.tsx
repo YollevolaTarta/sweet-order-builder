@@ -16,6 +16,8 @@ import {
   ToppingsPicker,
   packRecetas,
 } from "@/components/configurator-parts";
+import { CartView } from "@/components/cart-view";
+import { cartTotal, lineasDeCesta, type CartItem } from "@/lib/cart";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -36,10 +38,17 @@ export const Route = createFileRoute("/")({
   component: Configurator,
 });
 
-type Step = "intro" | "formato" | "modo" | "crema" | "toppings" | "catalogo" | "foto" | "resumen";
+type Step =
+  | "intro"
+  | "formato"
+  | "modo"
+  | "crema"
+  | "toppings"
+  | "catalogo"
+  | "foto"
+  | "resumen"
+  | "cesta";
 type Mode = "crear" | "recetas";
-
-
 
 function Configurator() {
   const [step, setStep] = useState<Step>("intro");
@@ -53,6 +62,7 @@ function Configurator() {
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [recetaId, setRecetaId] = useState<number | null>(null);
   const [packId, setPackId] = useState<number | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [sending, setSending] = useState(false);
   const [orderLabel, setOrderLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +106,8 @@ function Configurator() {
     };
   }, []);
 
-  const total = useMemo(() => {
+  // Precio del postre que se está configurando ahora mismo.
+  const itemPrecio = useMemo(() => {
     if (!format) return 0;
     if (mode === "recetas") {
       if (receta) return precioPorFormato(receta, formato);
@@ -107,12 +118,15 @@ function Configurator() {
     return format.basePrice + toppings.reduce((s, t) => s + t.price, 0);
   }, [format, formato, isShake, mode, pack, receta, toppings]);
 
+  const cestaTotal = cartTotal(cart);
+  const footerTotal = step === "cesta" ? cestaTotal : cestaTotal + itemPrecio;
+
   const flow: Step[] = useMemo(() => {
     const base: Step[] = ["formato", "modo"];
     if (mode === "recetas") base.push("catalogo");
     else base.push("crema", "toppings");
     if (isOpenTart) base.push("foto");
-    base.push("resumen");
+    base.push("resumen", "cesta");
     return base;
   }, [mode, isOpenTart]);
 
@@ -145,7 +159,71 @@ function Configurator() {
     }
   })();
 
+  const buildItem = (): CartItem | null => {
+    if (!format) return null;
+    const foto = isOpenTart ? wantsPhoto === true : false;
+    const precio = Number(itemPrecio.toFixed(2));
+    if (mode === "recetas" && pack) {
+      return {
+        uid: crypto.randomUUID(),
+        tipo: "pack",
+        formato,
+        formatName: `${format.name} · ${format.size}`,
+        nombre: `${pack.nombre} · ${pack.tamano} uds`,
+        detalle: packRecetas(pack).map((r) => r.nombre),
+        precio,
+        foto,
+        pack,
+      };
+    }
+    if (mode === "recetas" && receta) {
+      return {
+        uid: crypto.randomUUID(),
+        tipo: "receta",
+        formato,
+        formatName: `${format.name} · ${format.size}`,
+        nombre: receta.nombre,
+        detalle: [],
+        precio,
+        foto,
+        receta,
+      };
+    }
+    if (!cream) return null;
+    return {
+      uid: crypto.randomUUID(),
+      tipo: "personalizada",
+      formato,
+      formatName: `${format.name} · ${format.size}`,
+      nombre: `Tu tarta de ${cream.name}`,
+      detalle: [toppings.map((t) => t.name).join(" + ")].filter(Boolean),
+      precio,
+      foto,
+      crema: cream.name,
+      toppings: toppings.map((t) => t.name),
+    };
+  };
+
+  const addToCart = () => {
+    const item = buildItem();
+    if (!item) return;
+    setCart((prev) => [...prev, item]);
+    setStep("cesta");
+  };
+
+  const nuevoPostre = () => {
+    setMode(null);
+    setFormatId(null);
+    setWantsPhoto(null);
+    resetSelection();
+    setStep("formato");
+  };
+
   const goNext = () => {
+    if (step === "resumen") {
+      addToCart();
+      return;
+    }
     const next = flow[index + 1];
     if (next) setStep(next);
   };
@@ -167,18 +245,15 @@ function Configurator() {
     setMode(null);
     setFormatId(null);
     setWantsPhoto(null);
+    setCart([]);
     resetSelection();
   };
 
   const confirm = async () => {
-    if (!format) return;
-    if (mode === "crear" && !cream) return;
-    if (mode === "recetas" && !receta && !pack) return;
-    if (isOpenTart && wantsPhoto === null) return;
+    if (cart.length === 0) return;
     setSending(true);
     setError(null);
-    const foto = isOpenTart ? wantsPhoto === true : false;
-    const precio = Number(total.toFixed(2));
+    const precio = Number(cestaTotal.toFixed(2));
     // PROVISIONAL: marcamos el pedido como pagado con metodo_pago 'prueba'
     // hasta integrar el pago real (máquina/pasarela).
     const { data, error: err } = await supabaseYLLT
@@ -200,54 +275,7 @@ function Configurator() {
       return;
     }
 
-    let lineas: Record<string, unknown>[];
-    if (mode === "recetas" && pack) {
-      const grupo = crypto.randomUUID();
-      const items = packRecetas(pack);
-      const unit = Number((precio / (pack.tamano || items.length || 1)).toFixed(2));
-      lineas = items.map((r) => ({
-        pedido_id: data.id,
-        tipo: "pack",
-        formato,
-        pack_id: pack.id,
-        pack_grupo: grupo,
-        receta_id: r.id,
-        receta: r.nombre,
-        crema: r.crema,
-        topping_1: r.topping_1,
-        topping_2: r.topping_2,
-        foto,
-        precio: unit,
-      }));
-    } else if (mode === "recetas" && receta) {
-      lineas = [
-        {
-          pedido_id: data.id,
-          tipo: "receta",
-          formato,
-          receta_id: receta.id,
-          receta: receta.nombre,
-          crema: receta.crema,
-          topping_1: receta.topping_1,
-          topping_2: receta.topping_2,
-          foto,
-          precio,
-        },
-      ];
-    } else {
-      lineas = [
-        {
-          pedido_id: data.id,
-          tipo: "personalizada",
-          formato,
-          crema: cream!.name,
-          topping_1: toppings[0]?.name ?? null,
-          topping_2: toppings[1]?.name ?? null,
-          foto,
-          precio,
-        },
-      ];
-    }
+    const lineas = lineasDeCesta(cart, data.id);
 
     const { error: lineErr } = await supabaseYLLT.from("lineas_pedido").insert(lineas);
     setSending(false);
@@ -275,6 +303,7 @@ function Configurator() {
   }
 
   const isIntro = step === "intro";
+  const isCesta = step === "cesta";
 
   return (
     <main className="flex min-h-dvh flex-col bg-background">
@@ -384,7 +413,6 @@ function Configurator() {
           </>
         )}
 
-
         {step === "toppings" && (
           <>
             <h1 className="text-3xl font-black leading-tight">Elige tus toppings</h1>
@@ -394,7 +422,6 @@ function Configurator() {
             <ToppingsPicker toppingIds={toppingIds} isShake={isShake} onToggle={toggleTopping} />
           </>
         )}
-
 
         {step === "catalogo" && (
           <>
@@ -418,7 +445,6 @@ function Configurator() {
             />
           </>
         )}
-
 
         {step === "foto" && (
           <>
@@ -449,7 +475,7 @@ function Configurator() {
 
         {step === "resumen" && format && (
           <>
-            <h1 className="mb-4 text-3xl font-black leading-tight">Tu pedido</h1>
+            <h1 className="mb-4 text-3xl font-black leading-tight">Tu postre</h1>
             <div className="card-soft space-y-3 p-5">
               <Row label="Formato" value={`${format.name} · ${format.size}`} />
               {mode === "recetas" ? (
@@ -473,7 +499,7 @@ function Configurator() {
               <Row label="Decoración" value={wantsPhoto ? "Sí" : "No"} />
               <hr className="border-border" />
               {mode === "recetas" || isShake ? (
-                <Row label="Todo incluido" value={euro(total)} />
+                <Row label="Todo incluido" value={euro(itemPrecio)} />
               ) : (
                 <>
                   <Row label="Precio base" value={euro(format.basePrice)} />
@@ -483,16 +509,44 @@ function Configurator() {
                 </>
               )}
               <div className="flex items-center justify-between pt-1">
-                <span className="text-lg font-black">Total</span>
-                <span className="text-2xl font-black text-brand-red">{euro(total)}</span>
+                <span className="text-lg font-black">Este postre</span>
+                <span className="text-2xl font-black text-brand-red">{euro(itemPrecio)}</span>
               </div>
             </div>
             {error && <p className="mt-3 text-sm font-bold text-brand-red">{error}</p>}
           </>
         )}
+
+        {isCesta && (
+          <>
+            <h1 className="mb-1 text-3xl font-black leading-tight">¿Quieres algo más?</h1>
+            <p className="mb-5 text-sm font-bold text-muted-foreground">Estos son tus postres</p>
+            <CartView
+              cart={cart}
+              onRemove={(uid) => setCart((prev) => prev.filter((i) => i.uid !== uid))}
+            />
+            {error && <p className="mt-3 text-sm font-bold text-brand-red">{error}</p>}
+            <div className="mt-8 grid gap-3">
+              <button
+                disabled={sending || cart.length === 0}
+                onClick={confirm}
+                className="rounded-full bg-brand-red px-8 py-5 text-xl font-extrabold text-brand-red-foreground shadow-pop transition disabled:opacity-50"
+              >
+                {sending ? "Enviando…" : "Pagar"}
+              </button>
+              <button
+                type="button"
+                onClick={nuevoPostre}
+                className="rounded-full border-2 border-border px-8 py-4 text-lg font-extrabold"
+              >
+                Añadir otro postre
+              </button>
+            </div>
+          </>
+        )}
       </section>
 
-      {!isIntro && (
+      {!isIntro && !isCesta && (
         <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-card/95 px-5 pb-5 pt-3 backdrop-blur">
           <div className="mx-auto flex max-w-2xl items-center gap-3">
             <button
@@ -503,29 +557,18 @@ function Configurator() {
             </button>
             <div className="flex-1">
               <p className="text-[11px] font-bold uppercase text-muted-foreground">Total</p>
-              <p className="text-2xl font-black leading-none text-brand-red">{euro(total)}</p>
+              <p className="text-2xl font-black leading-none text-brand-red">{euro(footerTotal)}</p>
             </div>
-            {step !== "resumen" ? (
-              <button
-                disabled={!canContinue}
-                onClick={goNext}
-                className="rounded-full bg-primary px-8 py-4 text-lg font-extrabold text-primary-foreground shadow-card transition disabled:opacity-40"
-              >
-                Seguir
-              </button>
-            ) : (
-              <button
-                disabled={sending}
-                onClick={confirm}
-                className="rounded-full bg-brand-red px-7 py-4 text-lg font-extrabold text-brand-red-foreground shadow-pop transition disabled:opacity-50"
-              >
-                {sending ? "Enviando…" : "CONFIRMAR"}
-              </button>
-            )}
+            <button
+              disabled={!canContinue}
+              onClick={goNext}
+              className="rounded-full bg-primary px-8 py-4 text-lg font-extrabold text-primary-foreground shadow-card transition disabled:opacity-40"
+            >
+              {step === "resumen" ? "Añadir" : "Seguir"}
+            </button>
           </div>
         </footer>
       )}
     </main>
   );
 }
-
