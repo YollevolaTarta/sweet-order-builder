@@ -67,7 +67,7 @@ function KDS() {
     const load = async () => {
       const { data } = await supabaseYLLT
         .from("pedidos")
-        .select("*, lineas_pedido(*)")
+        .select("*, lineas_pedido(*, packs(nombre))")
         .eq("store_id", STORE_ID)
         .eq("pago", "pagado")
         .not("estado", "in", "(entregado,cancelado)")
