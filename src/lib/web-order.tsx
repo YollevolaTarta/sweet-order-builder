@@ -25,6 +25,11 @@ type Ctx = {
   setRecetaId: (id: number | null) => void;
   packId: number | null;
   setPackId: (id: number | null) => void;
+  cart: CartItem[];
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (uid: string) => void;
+  clearCart: () => void;
+  resetSeleccion: () => void;
   reset: () => void;
 };
 
@@ -40,6 +45,7 @@ export function WebOrderProvider({ children }: { children: ReactNode }) {
   const [toppingIds, setToppingIds] = useState<string[]>([]);
   const [recetaId, setRecetaId] = useState<number | null>(null);
   const [packId, setPackId] = useState<number | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
 
   useEffect(() => {
     let active = true;
