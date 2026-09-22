@@ -38,7 +38,7 @@ export type Cream = { id: string; name: string; desc: string; color: string };
 
 export const CREAMS: Cream[] = [
   { id: "vainilla", name: "Vainilla", desc: "Suave, cremosa y aromática", color: "oklch(0.95 0.07 100)" },
-  { id: "lemon", name: "Lemon curd", desc: "Intensa, ácida y refrescante", color: "oklch(0.9 0.16 95)" },
+  { id: "lemon", name: "Lemon Pie", desc: "Intensa, ácida y refrescante", color: "oklch(0.9 0.16 95)" },
   { id: "coulant", name: "Coulant chocolate", desc: "Profunda y fundente", color: "oklch(0.38 0.06 50)" },
   { id: "ny", name: "NY cheesecake", desc: "Densa, rica y equilibrada", color: "oklch(0.96 0.015 90)" },
   { id: "basque", name: "Basque cheesecake", desc: "Cremosa con toque salado", color: "oklch(0.85 0.08 75)" },
