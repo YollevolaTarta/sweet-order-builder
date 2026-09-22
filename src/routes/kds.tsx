@@ -129,19 +129,30 @@ function KDS() {
                 </span>
               )}
             </div>
-            <div className="mt-2 space-y-3">
-              {(o.lineas_pedido ?? []).map((l) => (
-                <div key={l.id}>
-                  <p className="text-lg font-black">{FORMATO_LABEL[l.formato] ?? l.formato}</p>
-                  <p className="font-bold">{l.crema}</p>
-                  <p className="text-sm font-bold text-muted-foreground">
-                    {[l.topping_1, l.topping_2].filter(Boolean).join(" + ")}
-                  </p>
-                  {l.foto && (
-                    <p className="mt-2 inline-block rounded-full bg-primary px-3 py-1 text-xs font-black text-primary-foreground">
-                      📸 Decoración foto
+            <div className="mt-2 space-y-4">
+              {groupLineas(o.lineas_pedido ?? []).map((g) => (
+                <div key={g.key}>
+                  {g.packNombre && (
+                    <p className="mb-1 inline-block rounded-full bg-accent px-3 py-1 text-xs font-black">
+                      📦 {g.packNombre}
                     </p>
                   )}
+                  <div className="space-y-3">
+                    {g.lineas.map((l) => (
+                      <div key={l.id}>
+                        <p className="text-lg font-black">{FORMATO_LABEL[l.formato] ?? l.formato}</p>
+                        <p className="font-bold">{l.receta ?? l.crema}</p>
+                        <p className="text-sm font-bold text-muted-foreground">
+                          {[l.topping_1, l.topping_2].filter(Boolean).join(" + ")}
+                        </p>
+                        {l.foto && (
+                          <p className="mt-2 inline-block rounded-full bg-primary px-3 py-1 text-xs font-black text-primary-foreground">
+                            📸 Decoración foto
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
