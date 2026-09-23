@@ -353,7 +353,9 @@ function WebConfigura() {
             Recógelo el {diaLabel(franja)} a las {horaLabel(franja)} en {STORE_NAME} 🍰
           </p>
         ) : (
-          <p className="max-w-xs text-lg font-bold">Te avisaremos cuando salga 🚚</p>
+          <p className="max-w-xs text-lg font-bold">
+            Tu pedido saldrá el {envioLabel(fechaEnvio())} 🚚
+          </p>
         )}
         <button
           onClick={() => {
@@ -583,6 +585,15 @@ function WebConfigura() {
               </section>
             ) : (
               <section className="mb-6 grid gap-3">
+                <div className="card-soft border-2 border-primary bg-accent p-4">
+                  <p className="text-lg font-black leading-snug">
+                    📦 Tu pedido saldrá el {envioLabel(fechaEnvio())}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-muted-foreground">
+                    Enviamos los miércoles y los jueves. Los pedidos hechos después de las 16:00
+                    pasan al siguiente envío.
+                  </p>
+                </div>
                 <Field label="Dirección" value={direccion} onChange={setDireccion} />
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Código postal" value={codigoPostal} onChange={setCodigoPostal} />
