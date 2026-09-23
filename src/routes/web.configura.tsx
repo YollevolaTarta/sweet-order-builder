@@ -590,8 +590,7 @@ function WebConfigura() {
                     📦 Tu pedido saldrá el {envioLabel(fechaEnvio())}
                   </p>
                   <p className="mt-1 text-sm font-bold text-muted-foreground">
-                    Enviamos los miércoles y los jueves. Los pedidos hechos después de las 16:00
-                    pasan al siguiente envío.
+                    Enviamos los miércoles y los jueves. Transporte en frío en 24h.
                   </p>
                 </div>
                 <Field label="Dirección" value={direccion} onChange={setDireccion} />
