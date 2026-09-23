@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as KdsRouteImport } from './routes/kds'
 import { Route as WebRouteImport } from './routes/web'
 import { Route as WebIndexRouteImport } from './routes/web.index'
 import { Route as WebConfiguraRouteImport } from './routes/web.configura'
@@ -19,11 +18,6 @@ import { Route as WebRecetasRouteImport } from './routes/web.recetas'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const KdsRoute = KdsRouteImport.update({
-  id: '/kds',
-  path: '/kds',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WebRoute = WebRouteImport.update({
@@ -49,7 +43,6 @@ const WebRecetasRoute = WebRecetasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/kds': typeof KdsRoute
   '/web': typeof WebRouteWithChildren
   '/web/configura': typeof WebConfiguraRoute
   '/web/recetas': typeof WebRecetasRoute
@@ -57,7 +50,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/kds': typeof KdsRoute
   '/web/configura': typeof WebConfiguraRoute
   '/web/recetas': typeof WebRecetasRoute
   '/web': typeof WebIndexRoute
@@ -65,7 +57,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/kds': typeof KdsRoute
   '/web': typeof WebRouteWithChildren
   '/web/configura': typeof WebConfiguraRoute
   '/web/recetas': typeof WebRecetasRoute
@@ -73,22 +64,14 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/kds' | '/web' | '/web/configura' | '/web/recetas' | '/web/'
+  fullPaths: '/' | '/web' | '/web/configura' | '/web/recetas' | '/web/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/kds' | '/web/configura' | '/web/recetas' | '/web'
-  id:
-    | '__root__'
-    | '/'
-    | '/kds'
-    | '/web'
-    | '/web/configura'
-    | '/web/recetas'
-    | '/web/'
+  to: '/' | '/web/configura' | '/web/recetas' | '/web'
+  id: '__root__' | '/' | '/web' | '/web/configura' | '/web/recetas' | '/web/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  KdsRoute: typeof KdsRoute
   WebRoute: typeof WebRouteWithChildren
 }
 
@@ -99,13 +82,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/kds': {
-      id: '/kds'
-      path: '/kds'
-      fullPath: '/kds'
-      preLoaderRoute: typeof KdsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/web': {
@@ -155,7 +131,6 @@ const WebRouteWithChildren = WebRoute._addFileChildren(WebRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  KdsRoute: KdsRoute,
   WebRoute: WebRouteWithChildren,
 }
 export const routeTree = rootRouteImport
