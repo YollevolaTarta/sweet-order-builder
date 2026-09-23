@@ -70,8 +70,7 @@ function fechaEnvio(): Date {
   if (dow === 3) objetivo = pasoCorte ? 4 : 3;
   else if (dow === 4) objetivo = pasoCorte ? 3 : 4;
   else objetivo = 3;
-  let delta = (objetivo - dow + 7) % 7;
-  if (delta === 0) delta = 7; // nunca debería ocurrir con la lógica de corte, por seguridad
+  const delta = (objetivo - dow + 7) % 7; // 0 = sale hoy (antes del corte de las 16:00)
   const salida = new Date(ahora);
   salida.setDate(ahora.getDate() + delta);
   return salida;
