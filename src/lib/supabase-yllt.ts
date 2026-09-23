@@ -14,7 +14,7 @@ export type Pedido = {
   fecha_negocio: string;
   tipo_pedido: "en_tienda" | "recoger" | "envio";
   franja_recogida: string | null;
-  estado: "pendiente" | "preparando" | "listo" | "entregado" | "cancelado";
+  estado: "pendiente" | "preparando" | "en_nevera" | "listo" | "cancelado";
   pago: "pendiente" | "pagado" | "fallido";
   metodo_pago: "maquina" | "pasarela" | "prueba" | null;
   total: number;
