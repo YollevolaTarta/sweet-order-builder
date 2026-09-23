@@ -58,6 +58,33 @@ const diaLabel = (iso: string) =>
 const horaLabel = (iso: string) =>
   new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
+// Envíos: salen miércoles y jueves a las 16:00 (hora de Madrid).
+// Jueves 16:01 → miércoles 16:00: sale el miércoles. Miércoles 16:01 → jueves 16:00: sale el jueves.
+function fechaEnvio(): Date {
+  const ahora = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Europe/Madrid" }),
+  );
+  const dow = ahora.getDay(); // 0 dom … 3 mié … 4 jue
+  const pasoCorte = ahora.getHours() > 16 || (ahora.getHours() === 16 && ahora.getMinutes() > 0);
+  let objetivo: 3 | 4;
+  if (dow === 3) objetivo = pasoCorte ? 4 : 3;
+  else if (dow === 4) objetivo = pasoCorte ? 3 : 4;
+  else objetivo = 3;
+  let delta = (objetivo - dow + 7) % 7;
+  if (delta === 0) delta = 7; // nunca debería ocurrir con la lógica de corte, por seguridad
+  const salida = new Date(ahora);
+  salida.setDate(ahora.getDate() + delta);
+  return salida;
+}
+
+const envioLabel = (d: Date) =>
+  d.toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "Europe/Madrid",
+  });
+
 function WebConfigura() {
   const navigate = useNavigate();
   const { vista } = Route.useSearch();
