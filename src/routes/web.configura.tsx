@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CREAMS, STORE_ID, TOPPINGS, euro } from "@/lib/menu";
+import { STORE_ID, euro } from "@/lib/menu";
+import { useIngredientes } from "@/lib/ingredientes";
 import {
   CatalogoPicker,
   CremaPicker,
@@ -114,6 +115,7 @@ function WebConfigura() {
   const format = WEB_FORMATS.find((f) => f.id === formatId) ?? null;
   const formato = formatoDe(formatId);
   const isShake = formatId === "cake-shake";
+  const { creams: CREAMS, toppings: TOPPINGS } = useIngredientes();
   const cream = CREAMS.find((c) => c.id === creamId) ?? null;
   const toppings = toppingIds
     .map((id) => TOPPINGS.find((t) => t.id === id))

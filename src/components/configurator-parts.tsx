@@ -1,6 +1,30 @@
 import { Check, Play } from "lucide-react";
 import { precioPorFormato, type Formato, type Pack, type Receta } from "@/lib/supabase-yllt";
-import { CREAMS, TOPPINGS, TOPPING_CATEGORIES, euro } from "@/lib/menu";
+import { euro } from "@/lib/menu";
+import { TOPPING_CATEGORIES, isVideo, useIngredientes, type Ingrediente } from "@/lib/ingredientes";
+
+function CatalogStatus({ loading, error, retry }: { loading: boolean; error: boolean; retry: () => void }) {
+  if (loading) return <p className="py-6 text-center font-bold text-muted-foreground">Cargando ingredientes…</p>;
+  if (error)
+    return (
+      <div className="card-soft p-5 text-center">
+        <p className="mb-3 font-extrabold">No hemos podido cargar los ingredientes.</p>
+        <button type="button" onClick={retry} className="rounded-full bg-primary px-5 py-2 font-black text-primary-foreground">
+          Reintentar
+        </button>
+      </div>
+    );
+  return null;
+}
+
+function Media({ item }: { item: Ingrediente }) {
+  if (!item.mediaUrl) return null;
+  return isVideo(item.mediaUrl) ? (
+    <video src={item.mediaUrl} className="absolute inset-0 h-full w-full object-cover" autoPlay muted loop playsInline />
+  ) : (
+    <img src={item.mediaUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+  );
+}
 
 export function Swatch({
   color,
@@ -45,6 +69,8 @@ export function CremaPicker({
   creamId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const { creams: CREAMS, loading, error, retry } = useIngredientes();
+  if (loading || error) return <CatalogStatus loading={loading} error={error} retry={retry} />;
   return (
     <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
       {CREAMS.map((c) => (
@@ -53,9 +79,13 @@ export function CremaPicker({
           onClick={() => onSelect(c.id)}
           className={`card-soft w-40 shrink-0 p-3 text-left ${creamId === c.id ? "card-selected animate-pop" : ""}`}
         >
-          <Swatch color={c.color} label={c.name} className="mb-2 h-24 w-full p-2" />
+          {c.mediaUrl ? (
+            <div className="relative mb-2 h-24 w-full overflow-hidden rounded-2xl"><Media item={c} /></div>
+          ) : (
+            <Swatch color={c.color} label={c.name} className="mb-2 h-24 w-full p-2" />
+          )}
           <p className="text-base font-black leading-tight">{c.name}</p>
-          <p className="text-xs font-semibold text-muted-foreground">{c.desc}</p>
+          {c.desc && <p className="text-xs font-semibold text-muted-foreground">{c.desc}</p>}
         </button>
       ))}
     </div>
@@ -71,16 +101,25 @@ export function ToppingsPicker({
   isShake: boolean;
   onToggle: (id: string) => void;
 }) {
+  const { toppings: TOPPINGS, loading, error, retry } = useIngredientes();
+  if (loading || error) return <CatalogStatus loading={loading} error={error} retry={retry} />;
+  const rango = (id: string) => {
+    const p = TOPPINGS.filter((t) => t.category === id).map((t) => t.price);
+    if (!p.length) return "";
+    const min = Math.min(...p), max = Math.max(...p);
+    const f = (n: number) => `${String(n).replace(".", ",")} €`;
+    return min === max ? f(min) : `${f(min)} – ${f(max)}`;
+  };
   return (
     <div className="space-y-7">
-      {TOPPING_CATEGORIES.map((category) => (
+      {TOPPING_CATEGORIES.filter((c) => TOPPINGS.some((t) => t.category === c.id)).map((category) => (
         <section key={category.id} aria-labelledby={`category-${category.id}`}>
           <div className="mb-3 flex items-baseline gap-2">
             <h2 id={`category-${category.id}`} className="text-xl font-black">
               {category.name}
             </h2>
             {!isShake && (
-              <span className="text-sm font-extrabold text-brand-red">— {category.priceLabel}</span>
+              <span className="text-sm font-extrabold text-brand-red">— {rango(category.id)}</span>
             )}
           </div>
           <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
@@ -101,9 +140,13 @@ export function ToppingsPicker({
                     style={{ backgroundColor: topping.color }}
                     aria-hidden="true"
                   >
-                    <span className="flex size-9 items-center justify-center rounded-full bg-card/85 text-foreground shadow-card">
-                      <Play className="size-4 fill-current" />
-                    </span>
+                    {topping.mediaUrl ? (
+                      <Media item={topping} />
+                    ) : (
+                      <span className="flex size-9 items-center justify-center rounded-full bg-card/85 text-foreground shadow-card">
+                        <Play className="size-4 fill-current" />
+                      </span>
+                    )}
                     {selected && (
                       <span className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
                         <Check className="size-4 stroke-[3]" />
