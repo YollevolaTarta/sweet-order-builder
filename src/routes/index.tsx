@@ -7,7 +7,8 @@ import {
   type Pack,
   type Receta,
 } from "@/lib/supabase-yllt";
-import { CREAMS, FORMATS, STORE_ID, TOPPINGS, euro } from "@/lib/menu";
+import { FORMATS, STORE_ID, euro } from "@/lib/menu";
+import { useIngredientes } from "@/lib/ingredientes";
 import {
   CatalogoPicker,
   CremaPicker,
@@ -72,6 +73,7 @@ function Configurator() {
   });
 
   const format = FORMATS.find((f) => f.id === formatId) ?? null;
+  const { creams: CREAMS, toppings: TOPPINGS } = useIngredientes();
   const cream = CREAMS.find((c) => c.id === creamId) ?? null;
   const isShake = format?.id === "cake-shake";
   const isOpenTart = format?.id === "tarta-abierta";
