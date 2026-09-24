@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabaseYLLT } from "@/lib/supabase-yllt";
+import { STORE_ID } from "@/lib/menu";
 
 export type ToppingCategory = "mermelada" | "frutos_secos" | "mousse";
 
@@ -58,9 +59,9 @@ let cache: Catalog | null = null;
 async function fetchIngredientes(): Promise<Catalog> {
   const [ingredientesResult, alergenosResult] = await Promise.all([
     supabaseYLLT
-      .from("ingredientes")
-      .select("id, nombre, categoria, precio, descripcion, media_url, alergenos, orden")
-      .eq("activo", true)
+      .from("v_ingredientes_disponibles")
+      .select("ingrediente_id, nombre, categoria, precio, descripcion, media_url, alergenos, orden")
+      .eq("store_id", STORE_ID)
       .neq("categoria", "visual")
       .order("orden"),
     supabaseYLLT.from("alergenos").select("codigo, sigla, nombre, orden").order("orden"),
@@ -70,12 +71,12 @@ async function fetchIngredientes(): Promise<Catalog> {
   const items = (ingredientesResult.data ?? [])
     .filter((r) => r.categoria !== "visual")
     .map((r) => ({
-      id: String(r.id),
+      id: String(r.ingrediente_id),
       name: r.nombre as string,
       desc: (r.descripcion as string | null)?.trim() || null,
       price: Number(r.precio ?? 0),
       category: r.categoria,
-      color: colorFor(String(r.id)),
+      color: colorFor(String(r.ingrediente_id)),
       mediaUrl: (r.media_url as string | null)?.trim() || null,
       allergens: Array.isArray(r.alergenos) ? r.alergenos.map(String) : [],
     }));

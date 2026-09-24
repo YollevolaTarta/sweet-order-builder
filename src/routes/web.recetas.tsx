@@ -42,8 +42,8 @@ function WebRecetas() {
   // Al elegir receta o pack pasamos a una pantalla propia de formato.
   const [pantalla, setPantalla] = useState<"catalogo" | "formato">("catalogo");
 
-  const receta = recetas.find((r) => r.id === recetaId) ?? null;
-  const pack = packs.find((p) => p.id === packId) ?? null;
+  const receta = recetas.find((r) => r.receta_id === recetaId) ?? null;
+  const pack = packs.find((p) => p.pack_id === packId) ?? null;
   const seleccion = receta ?? pack;
 
   if (pantalla === "formato" && seleccion) {

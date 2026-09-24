@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { supabaseYLLT, type Pack, type Receta, type Formato } from "@/lib/supabase-yllt";
-import { FORMATS } from "@/lib/menu";
+import { supabaseYLLT, fetchRecetasYPacks, type Pack, type Receta, type Formato } from "@/lib/supabase-yllt";
+import { FORMATS, STORE_ID } from "@/lib/menu";
 import type { CartItem } from "@/lib/cart";
 
 // En la web solo se venden tarta en lata y cake shake (nunca tarta abierta,
@@ -50,17 +50,10 @@ export function WebOrderProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     (async () => {
-      const [r, p] = await Promise.all([
-        supabaseYLLT.from("recetas").select("*").eq("activa", true).order("orden"),
-        supabaseYLLT
-          .from("packs")
-          .select("*, pack_recetas(orden, recetas(*))")
-          .eq("activo", true)
-          .order("orden"),
-      ]);
+      const { recetas: r, packs: pk } = await fetchRecetasYPacks(STORE_ID);
       if (!active) return;
-      setRecetas((r.data as Receta[]) ?? []);
-      setPacks((p.data as Pack[]) ?? []);
+      setRecetas(r);
+      setPacks(pk);
       setLoading(false);
     })();
     return () => {

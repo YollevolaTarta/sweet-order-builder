@@ -252,13 +252,13 @@ export function CatalogoPicker({
           </h2>
           <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
             {recetas.map((r) => {
-              const selected = recetaId === r.id;
+              const selected = recetaId === r.receta_id;
               return (
                 <button
-                  key={r.id}
+                  key={r.receta_id}
                   type="button"
                   aria-pressed={selected}
-                  onClick={() => onSelectReceta(selected ? null : r.id)}
+                  onClick={() => onSelectReceta(selected ? null : r.receta_id)}
                   className={`card-soft relative w-48 shrink-0 snap-start p-3 text-left ${selected ? "card-selected animate-pop" : ""}`}
                 >
                   {selected && (
@@ -285,13 +285,13 @@ export function CatalogoPicker({
             </h2>
             <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
               {group.map((p) => {
-                const selected = packId === p.id;
+                const selected = packId === p.pack_id;
                 return (
                   <button
-                    key={p.id}
+                    key={p.pack_id}
                     type="button"
                     aria-pressed={selected}
-                    onClick={() => onSelectPack(selected ? null : p.id)}
+                    onClick={() => onSelectPack(selected ? null : p.pack_id)}
                     className={`card-soft relative w-56 shrink-0 snap-start p-3 text-left ${selected ? "card-selected animate-pop" : ""}`}
                   >
                     {selected && (
@@ -302,7 +302,7 @@ export function CatalogoPicker({
                     <span className="block pr-6 text-base font-black leading-tight">{p.nombre}</span>
                     <span className="mt-2 block space-y-0.5">
                       {packRecetas(p).map((r) => (
-                        <span key={r.id} className="block text-xs font-bold text-muted-foreground">
+                        <span key={r.receta_id} className="block text-xs font-bold text-muted-foreground">
                           · {r.nombre}
                         </span>
                       ))}

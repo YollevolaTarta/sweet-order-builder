@@ -120,8 +120,8 @@ function WebConfigura() {
   const toppings = toppingIds
     .map((id) => TOPPINGS.find((t) => t.id === id))
     .filter((t) => t !== undefined);
-  const receta = recetas.find((r) => r.id === recetaId) ?? null;
-  const pack = packs.find((p) => p.id === packId) ?? null;
+  const receta = recetas.find((r) => r.receta_id === recetaId) ?? null;
+  const pack = packs.find((p) => p.pack_id === packId) ?? null;
 
   // Si se entra con una receta/pack ya elegido (landing), no se muestra el catálogo.
   const [preseleccion] = useState(() => mode === "recetas" && (!!recetaId || !!packId));
@@ -477,7 +477,7 @@ function WebConfigura() {
                     <>
                       <Row label="Pack" value={`${pack.nombre} · ${pack.tamano} uds`} />
                       {packRecetas(pack).map((r) => (
-                        <Row key={r.id} label="·" value={r.nombre} />
+                        <Row key={r.receta_id} label="·" value={r.nombre} />
                       ))}
                     </>
                   )}
