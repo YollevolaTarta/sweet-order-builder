@@ -11,7 +11,16 @@ export type Ingrediente = {
   category: "crema" | ToppingCategory;
   color: string;
   mediaUrl: string | null;
+  allergens: string[];
 };
+
+export type Alergeno = {
+  code: string;
+  abbreviation: string;
+  name: string;
+};
+
+export type AlergenosByCode = Record<string, Alergeno>;
 
 export const TOPPING_CATEGORIES: { id: ToppingCategory; name: string }[] = [
   { id: "mermelada", name: "Mermeladas" },
@@ -42,18 +51,23 @@ const colorFor = (key: string) => {
 
 export const isVideo = (url: string) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
 
-type State = { items: Ingrediente[]; loading: boolean; error: boolean };
-let cache: Ingrediente[] | null = null;
+type State = { items: Ingrediente[]; allergensByCode: AlergenosByCode; loading: boolean; error: boolean };
+type Catalog = { items: Ingrediente[]; allergensByCode: AlergenosByCode };
+let cache: Catalog | null = null;
 
-async function fetchIngredientes(): Promise<Ingrediente[]> {
-  const { data, error } = await supabaseYLLT
-    .from("ingredientes")
-    .select("id, nombre, categoria, precio, descripcion, media_url, orden")
-    .eq("activo", true)
-    .neq("categoria", "visual")
-    .order("orden");
-  if (error) throw error;
-  return (data ?? [])
+async function fetchIngredientes(): Promise<Catalog> {
+  const [ingredientesResult, alergenosResult] = await Promise.all([
+    supabaseYLLT
+      .from("ingredientes")
+      .select("id, nombre, categoria, precio, descripcion, media_url, alergenos, orden")
+      .eq("activo", true)
+      .neq("categoria", "visual")
+      .order("orden"),
+    supabaseYLLT.from("alergenos").select("codigo, sigla, nombre, orden").order("orden"),
+  ]);
+  if (ingredientesResult.error) throw ingredientesResult.error;
+  if (alergenosResult.error) throw alergenosResult.error;
+  const items = (ingredientesResult.data ?? [])
     .filter((r) => r.categoria !== "visual")
     .map((r) => ({
       id: String(r.id),
@@ -63,12 +77,21 @@ async function fetchIngredientes(): Promise<Ingrediente[]> {
       category: r.categoria,
       color: colorFor(String(r.id)),
       mediaUrl: (r.media_url as string | null)?.trim() || null,
+      allergens: Array.isArray(r.alergenos) ? r.alergenos.map(String) : [],
     }));
+  const allergensByCode = Object.fromEntries(
+    (alergenosResult.data ?? []).map((row) => [
+      String(row.codigo),
+      { code: String(row.codigo), abbreviation: String(row.sigla), name: String(row.nombre) },
+    ]),
+  );
+  return { items, allergensByCode };
 }
 
 export function useIngredientes() {
   const [state, setState] = useState<State>({
-    items: cache ?? [],
+    items: cache?.items ?? [],
+    allergensByCode: cache?.allergensByCode ?? {},
     loading: !cache,
     error: false,
   });
@@ -76,11 +99,11 @@ export function useIngredientes() {
   const load = useCallback(() => {
     setState((s) => ({ ...s, loading: true, error: false }));
     fetchIngredientes()
-      .then((items) => {
-        cache = items;
-        setState({ items, loading: false, error: false });
+      .then((catalog) => {
+        cache = catalog;
+        setState({ ...catalog, loading: false, error: false });
       })
-      .catch(() => setState({ items: [], loading: false, error: true }));
+      .catch(() => setState({ items: [], allergensByCode: {}, loading: false, error: true }));
   }, []);
 
   useEffect(() => {
@@ -89,5 +112,5 @@ export function useIngredientes() {
 
   const creams = state.items.filter((i) => i.category === "crema");
   const toppings = state.items.filter((i) => i.category !== "crema");
-  return { creams, toppings, loading: state.loading, error: state.error, retry: load };
+  return { creams, toppings, allergensByCode: state.allergensByCode, loading: state.loading, error: state.error, retry: load };
 }

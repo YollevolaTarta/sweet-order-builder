@@ -1,7 +1,13 @@
 import { Check, Play } from "lucide-react";
 import { precioPorFormato, type Formato, type Pack, type Receta } from "@/lib/supabase-yllt";
 import { euro } from "@/lib/menu";
-import { TOPPING_CATEGORIES, isVideo, useIngredientes, type Ingrediente } from "@/lib/ingredientes";
+import {
+  TOPPING_CATEGORIES,
+  isVideo,
+  useIngredientes,
+  type AlergenosByCode,
+  type Ingrediente,
+} from "@/lib/ingredientes";
 
 function CatalogStatus({ loading, error, retry }: { loading: boolean; error: boolean; retry: () => void }) {
   if (loading) return <p className="py-6 text-center font-bold text-muted-foreground">Cargando ingredientes…</p>;
@@ -23,6 +29,42 @@ function Media({ item }: { item: Ingrediente }) {
     <video src={item.mediaUrl} className="absolute inset-0 h-full w-full object-cover" autoPlay muted loop playsInline />
   ) : (
     <img src={item.mediaUrl} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+  );
+}
+
+function AllergenCodes({ codes, dictionary }: { codes: string[]; dictionary: AlergenosByCode }) {
+  const allergens = codes.map((code) => dictionary[code]).filter((item) => item !== undefined);
+  if (allergens.length === 0) return null;
+  return (
+    <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
+      {allergens.map((allergen, index) => (
+        <span key={allergen.code}>
+          {index > 0 && <span aria-hidden="true"> · </span>}
+          <span title={allergen.name} aria-label={allergen.name}>{allergen.abbreviation}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function AllergenLegend({ items, dictionary }: { items: Ingrediente[]; dictionary: AlergenosByCode }) {
+  const codes = [...new Set(items.flatMap((item) => item.allergens))].filter((code) => dictionary[code]);
+  if (codes.length === 0) return null;
+  return (
+    <p className="mt-2 text-[11px] font-normal text-muted-foreground">
+      {codes.map((code, index) => {
+        const allergen = dictionary[code];
+        if (!allergen) return null;
+        return (
+          <span key={code}>
+            {index > 0 && <span aria-hidden="true"> · </span>}
+            <span title={allergen.name} aria-label={`${allergen.abbreviation}: ${allergen.name}`}>
+              {allergen.abbreviation} {allergen.name.toLocaleLowerCase("es")}
+            </span>
+          </span>
+        );
+      })}
+    </p>
   );
 }
 
@@ -69,25 +111,29 @@ export function CremaPicker({
   creamId: string | null;
   onSelect: (id: string) => void;
 }) {
-  const { creams: CREAMS, loading, error, retry } = useIngredientes();
+  const { creams: CREAMS, allergensByCode, loading, error, retry } = useIngredientes();
   if (loading || error) return <CatalogStatus loading={loading} error={error} retry={retry} />;
   return (
-    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-      {CREAMS.map((c) => (
-        <button
-          key={c.id}
-          onClick={() => onSelect(c.id)}
-          className={`card-soft w-40 shrink-0 p-3 text-left ${creamId === c.id ? "card-selected animate-pop" : ""}`}
-        >
-          {c.mediaUrl ? (
-            <div className="relative mb-2 h-24 w-full overflow-hidden rounded-2xl"><Media item={c} /></div>
-          ) : (
-            <Swatch color={c.color} label={c.name} className="mb-2 h-24 w-full p-2" />
-          )}
-          <p className="text-base font-black leading-tight">{c.name}</p>
-          {c.desc && <p className="text-xs font-semibold text-muted-foreground">{c.desc}</p>}
-        </button>
-      ))}
+    <div>
+      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+        {CREAMS.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => onSelect(c.id)}
+            className={`card-soft w-40 shrink-0 p-3 text-left ${creamId === c.id ? "card-selected animate-pop" : ""}`}
+          >
+            {c.mediaUrl ? (
+              <div className="relative mb-2 h-24 w-full overflow-hidden rounded-2xl"><Media item={c} /></div>
+            ) : (
+              <Swatch color={c.color} label={c.name} className="mb-2 h-24 w-full p-2" />
+            )}
+            <p className="text-base font-black leading-tight">{c.name}</p>
+            {c.desc && <p className="text-xs font-semibold text-muted-foreground">{c.desc}</p>}
+            <AllergenCodes codes={c.allergens} dictionary={allergensByCode} />
+          </button>
+        ))}
+      </div>
+      <AllergenLegend items={CREAMS} dictionary={allergensByCode} />
     </div>
   );
 }
@@ -101,7 +147,7 @@ export function ToppingsPicker({
   isShake: boolean;
   onToggle: (id: string) => void;
 }) {
-  const { toppings: TOPPINGS, loading, error, retry } = useIngredientes();
+  const { toppings: TOPPINGS, allergensByCode, loading, error, retry } = useIngredientes();
   if (loading || error) return <CatalogStatus loading={loading} error={error} retry={retry} />;
   const rango = (id: string) => {
     const p = TOPPINGS.filter((t) => t.category === id).map((t) => t.price);
@@ -155,16 +201,18 @@ export function ToppingsPicker({
                   </span>
                   <span className="block min-h-10 text-sm font-black leading-tight">{topping.name}</span>
                   {!isShake && (
-                    <span className="mt-2 block text-sm font-black text-brand-red">
+                    <span className="mt-1 block text-sm font-black text-brand-red">
                       {euro(topping.price)}
                     </span>
                   )}
+                  <AllergenCodes codes={topping.allergens} dictionary={allergensByCode} />
                 </button>
               );
             })}
           </div>
         </section>
       ))}
+      <AllergenLegend items={TOPPINGS} dictionary={allergensByCode} />
     </div>
   );
 }
