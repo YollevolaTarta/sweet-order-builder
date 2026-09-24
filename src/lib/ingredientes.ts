@@ -37,7 +37,7 @@ const PALETTE = [
 const colorFor = (key: string) => {
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return PALETTE[h % PALETTE.length];
+  return PALETTE[h % PALETTE.length]!;
 };
 
 export const isVideo = (url: string) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
