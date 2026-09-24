@@ -378,6 +378,9 @@ function Configurator() {
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-[11px] font-normal text-muted-foreground">
+              Todos nuestros postres llevan base de galleta y se elaboran en un obrador donde se manipula gluten, frutos secos y lácteos.
+            </p>
           </>
         )}
 
