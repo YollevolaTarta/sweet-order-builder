@@ -106,7 +106,7 @@ export async function fetchRecetasYPacks(storeId: string): Promise<{ recetas: Re
   const byId = new Map(recetas.map((x) => [x.receta_id, x]));
   const links = (pr.data as { pack_id: number; receta_id: number; orden: number }[]) ?? [];
   const packs = ((p.data as Omit<Pack, "pack_recetas">[]) ?? [])
-    .map((pack) => {
+    .map((pack): Pack | null => {
       const own = links.filter((l) => l.pack_id === pack.pack_id);
       if (own.length === 0 || own.some((l) => !byId.has(l.receta_id))) return null;
       return { ...pack, pack_recetas: own.map((l) => ({ orden: l.orden, recetas: byId.get(l.receta_id)! })) };

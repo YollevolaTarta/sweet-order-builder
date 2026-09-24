@@ -6,7 +6,7 @@ import {
   type Formato,
   type Pack,
   type Receta,
-} from "@/lib/supabase-yllt";
+, fetchRecetasYPacks } from "@/lib/supabase-yllt";
 import { FORMATS, STORE_ID, euro } from "@/lib/menu";
 import { useIngredientes } from "@/lib/ingredientes";
 import {
