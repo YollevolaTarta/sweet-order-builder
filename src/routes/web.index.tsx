@@ -51,9 +51,9 @@ function WebLanding() {
         <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
           {destacados.map((p) => (
             <button
-              key={p.id}
+              key={p.pack_id}
               type="button"
-              onClick={() => elegirPack(p.id)}
+              onClick={() => elegirPack(p.pack_id)}
               className="card-soft w-60 shrink-0 snap-start p-4 text-left"
             >
               <span className="block text-lg font-black leading-tight">{p.nombre}</span>
@@ -62,7 +62,7 @@ function WebLanding() {
               </span>
               <span className="mt-2 block space-y-0.5">
                 {packRecetas(p).map((r) => (
-                  <span key={r.id} className="block text-xs font-bold text-muted-foreground">
+                  <span key={r.receta_id} className="block text-xs font-bold text-muted-foreground">
                     · {r.nombre}
                   </span>
                 ))}

@@ -39,13 +39,14 @@ export type LineaPedido = {
 };
 
 export type Receta = {
-  id: number;
+  receta_id: number;
   numero: number;
   nombre: string;
   crema: string;
   topping_1: string | null;
   topping_2: string | null;
-  activa: boolean;
+  temporada?: string | null;
+  store_id: string;
   orden: number;
   precio_lata: number;
   precio_abierta: number;
@@ -54,11 +55,25 @@ export type Receta = {
 
 export type PackReceta = { orden: number; recetas: Receta | null };
 
+export type IngredienteDisponible = {
+  ingrediente_id: number;
+  nombre: string;
+  categoria: string;
+  precio: number | null;
+  orden: number;
+  descripcion: string | null;
+  media_url: string | null;
+  alergenos: string[] | null;
+  elaboracion_id: number | null;
+  store_id: string;
+};
+
 export type Pack = {
-  id: number;
+  pack_id: number;
   nombre: string;
   tamano: number;
-  activo: boolean;
+  temporada?: string | null;
+  store_id: string;
   orden: number;
   precio_lata: number;
   precio_abierta: number;
@@ -78,3 +93,24 @@ export const precioPorFormato = (
 export const supabaseYLLT = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
+
+// Catálogo desde las vistas de disponibilidad (ya filtran lo agotado).
+// Un pack se descarta si alguna de sus recetas no está disponible.
+export async function fetchRecetasYPacks(storeId: string): Promise<{ recetas: Receta[]; packs: Pack[] }> {
+  const [r, p, pr] = await Promise.all([
+    supabaseYLLT.from("v_recetas_disponibles").select("*").eq("store_id", storeId).order("orden"),
+    supabaseYLLT.from("v_packs_disponibles").select("*").eq("store_id", storeId).order("orden"),
+    supabaseYLLT.from("pack_recetas").select("pack_id, receta_id, orden"),
+  ]);
+  const recetas = (r.data as Receta[]) ?? [];
+  const byId = new Map(recetas.map((x) => [x.receta_id, x]));
+  const links = (pr.data as { pack_id: number; receta_id: number; orden: number }[]) ?? [];
+  const packs = ((p.data as Omit<Pack, "pack_recetas">[]) ?? [])
+    .map((pack): Pack | null => {
+      const own = links.filter((l) => l.pack_id === pack.pack_id);
+      if (own.length === 0 || own.some((l) => !byId.has(l.receta_id))) return null;
+      return { ...pack, pack_recetas: own.map((l) => ({ orden: l.orden, recetas: byId.get(l.receta_id)! })) };
+    })
+    .filter((x): x is Pack => x !== null);
+  return { recetas, packs };
+}

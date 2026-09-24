@@ -6,6 +6,7 @@ import {
   type Formato,
   type Pack,
   type Receta,
+  fetchRecetasYPacks,
 } from "@/lib/supabase-yllt";
 import { FORMATS, STORE_ID, euro } from "@/lib/menu";
 import { useIngredientes } from "@/lib/ingredientes";
@@ -83,24 +84,17 @@ function Configurator() {
     .map((id) => TOPPINGS.find((t) => t.id === id))
     .filter((topping) => topping !== undefined);
 
-  const receta = recetas.find((r) => r.id === recetaId) ?? null;
-  const pack = packs.find((p) => p.id === packId) ?? null;
+  const receta = recetas.find((r) => r.receta_id === recetaId) ?? null;
+  const pack = packs.find((p) => p.pack_id === packId) ?? null;
 
   useEffect(() => {
     let active = true;
     setCatalogLoading(true);
     (async () => {
-      const [r, p] = await Promise.all([
-        supabaseYLLT.from("recetas").select("*").eq("activa", true).order("orden"),
-        supabaseYLLT
-          .from("packs")
-          .select("*, pack_recetas(orden, recetas(*))")
-          .eq("activo", true)
-          .order("orden"),
-      ]);
+      const { recetas: r, packs: pk } = await fetchRecetasYPacks(STORE_ID);
       if (!active) return;
-      setRecetas((r.data as Receta[]) ?? []);
-      setPacks((p.data as Pack[]) ?? []);
+      setRecetas(r);
+      setPacks(pk);
       setCatalogLoading(false);
     })();
     return () => {
@@ -490,7 +484,7 @@ function Configurator() {
                     <>
                       <Row label="Pack" value={`${pack.nombre} · ${pack.tamano} uds`} />
                       {packRecetas(pack).map((r) => (
-                        <Row key={r.id} label="·" value={r.nombre} />
+                        <Row key={r.receta_id} label="·" value={r.nombre} />
                       ))}
                     </>
                   )}
