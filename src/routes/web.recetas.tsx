@@ -1,8 +1,7 @@
-import { LiquidoPicker } from "@/components/configurator-parts";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { euro } from "@/lib/menu";
-import { CatalogoPicker, Swatch } from "@/components/configurator-parts";
+import { CatalogoPicker, LiquidoPicker, Swatch } from "@/components/configurator-parts";
 import { WEB_FORMATS, formatoDe, useWebOrder } from "@/lib/web-order";
 import { precioPorFormato } from "@/lib/supabase-yllt";
 import { conLiquido, itemDePack, itemDeReceta, opcionLiquido } from "@/lib/cart";
@@ -50,7 +49,7 @@ function WebRecetas() {
 
   const shakeFormat = WEB_FORMATS.find((f) => f.id === "cake-shake")!;
 
-  const añadir = (f: (typeof WEB_FORMATS)[number], lid: string | null) => {
+  const anadir = (f: (typeof WEB_FORMATS)[number], lid: string | null) => {
     const fmt = formatoDe(f.id)!;
     setFormatId(f.id);
     const base = pack ? itemDePack(pack, f, fmt) : itemDeReceta(receta!, f, fmt);
@@ -80,7 +79,7 @@ function WebRecetas() {
           <button
             type="button"
             disabled={!opcionLiquido(liquidoId)}
-            onClick={() => añadir(shakeFormat, liquidoId)}
+            onClick={() => anadir(shakeFormat, liquidoId)}
             className="flex-1 rounded-full bg-brand-red px-6 py-4 text-lg font-extrabold text-brand-red-foreground shadow-pop transition disabled:opacity-50"
           >
             Continuar
@@ -108,7 +107,7 @@ function WebRecetas() {
                     setPantalla("liquido");
                     return;
                   }
-                  añadir(f, null);
+                  anadir(f, null);
                 }}
                 className="card-soft flex items-center gap-4 p-5 text-left"
               >
