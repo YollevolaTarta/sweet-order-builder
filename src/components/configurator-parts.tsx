@@ -1,6 +1,7 @@
 import { Check, Play } from "lucide-react";
 import { precioPorFormato, type Formato, type Pack, type Receta } from "@/lib/supabase-yllt";
 import { euro } from "@/lib/menu";
+import { OPCIONES_LIQUIDO } from "@/lib/cart";
 import {
   TOPPING_CATEGORIES,
   isVideo,
@@ -316,5 +317,28 @@ export function CatalogoPicker({
         );
       })}
     </>
+  );
+}
+
+export function LiquidoPicker({
+  value,
+  onSelect,
+}: {
+  value: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="grid gap-4">
+      {OPCIONES_LIQUIDO.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onSelect(o.id)}
+          className={`card-soft p-6 text-left ${value === o.id ? "card-selected animate-pop" : ""}`}
+        >
+          <span className="block text-2xl font-black">{o.label}</span>
+        </button>
+      ))}
+    </div>
   );
 }

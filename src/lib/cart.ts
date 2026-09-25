@@ -16,7 +16,35 @@ export type CartItem = {
   toppings?: string[];
   receta?: Receta;
   pack?: Pack;
+  liquido?: Liquido | null;
+  extra_matcha?: boolean;
 };
+
+// Líquido del cake shake. El matcha va incluido, no cambia el precio.
+export type Liquido = "leche" | "vegetal";
+export type OpcionLiquido = { id: string; label: string; liquido: Liquido; extra_matcha: boolean };
+export const OPCIONES_LIQUIDO: OpcionLiquido[] = [
+  { id: "leche", label: "Leche", liquido: "leche", extra_matcha: false },
+  { id: "vegetal", label: "Bebida vegetal", liquido: "vegetal", extra_matcha: false },
+  { id: "matcha-leche", label: "Matcha con leche", liquido: "leche", extra_matcha: true },
+  { id: "matcha-vegetal", label: "Matcha con bebida vegetal", liquido: "vegetal", extra_matcha: true },
+];
+export const opcionLiquido = (id: string | null) => OPCIONES_LIQUIDO.find((o) => o.id === id) ?? null;
+export const liquidoLabel = (item: Pick<CartItem, "formato" | "liquido" | "extra_matcha">) => {
+  if (item.formato !== "shake" || !item.liquido) return null;
+  const base = item.liquido === "leche" ? "leche" : "bebida vegetal";
+  return item.extra_matcha ? `Matcha con ${base}` : `Con ${base}`;
+};
+/** Aplica la opción de líquido a un item (solo shakes). */
+export const conLiquido = (item: CartItem, opcion: OpcionLiquido | null): CartItem =>
+  item.formato === "shake" && opcion
+    ? { ...item, liquido: opcion.liquido, extra_matcha: opcion.extra_matcha }
+    : { ...item, liquido: null, extra_matcha: false };
+
+const liquidoCols = (item: CartItem) =>
+  item.formato === "shake" && item.liquido
+    ? { liquido: item.liquido, extra_matcha: !!item.extra_matcha }
+    : { liquido: null, extra_matcha: false };
 
 export const cartTotal = (cart: CartItem[]) => cart.reduce((s, i) => s + i.precio, 0);
 
@@ -46,6 +74,7 @@ export function lineasDeItem(item: CartItem, pedidoId: number): Record<string, u
       topping_2: r.topping_2,
       foto: item.foto,
       precio: unit,
+      ...liquidoCols(item),
     }));
   }
   if (item.tipo === "receta" && item.receta) {
@@ -62,6 +91,7 @@ export function lineasDeItem(item: CartItem, pedidoId: number): Record<string, u
         topping_2: r.topping_2,
         foto: item.foto,
         precio: Number(item.precio.toFixed(2)),
+        ...liquidoCols(item),
       },
     ];
   }
@@ -75,6 +105,7 @@ export function lineasDeItem(item: CartItem, pedidoId: number): Record<string, u
       topping_2: item.toppings?.[1] ?? null,
       foto: item.foto,
       precio: Number(item.precio.toFixed(2)),
+      ...liquidoCols(item),
     },
   ];
 }
