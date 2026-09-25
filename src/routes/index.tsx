@@ -13,6 +13,7 @@ import { useIngredientes } from "@/lib/ingredientes";
 import {
   CatalogoPicker,
   CremaPicker,
+  LiquidoPicker,
   Row,
   Swatch,
   ToppingsPicker,
