@@ -13,13 +13,14 @@ import { useIngredientes } from "@/lib/ingredientes";
 import {
   CatalogoPicker,
   CremaPicker,
+  LiquidoPicker,
   Row,
   Swatch,
   ToppingsPicker,
   packRecetas,
 } from "@/components/configurator-parts";
 import { CartView } from "@/components/cart-view";
-import { cartTotal, lineasDeCesta, type CartItem } from "@/lib/cart";
+import { cartTotal, conLiquido, lineasDeCesta, liquidoLabel, opcionLiquido, type CartItem } from "@/lib/cart";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,6 +44,7 @@ export const Route = createFileRoute("/")({
 type Step =
   | "intro"
   | "formato"
+  | "liquido"
   | "modo"
   | "crema"
   | "toppings"
@@ -59,6 +61,7 @@ function Configurator() {
   const [creamId, setCreamId] = useState<string | null>(null);
   const [toppingIds, setToppingIds] = useState<string[]>([]);
   const [wantsPhoto, setWantsPhoto] = useState<boolean | null>(null);
+  const [liquidoId, setLiquidoId] = useState<string | null>(null);
   const [recetas, setRecetas] = useState<Receta[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -118,13 +121,15 @@ function Configurator() {
   const footerTotal = step === "cesta" ? cestaTotal : cestaTotal + itemPrecio;
 
   const flow: Step[] = useMemo(() => {
-    const base: Step[] = ["formato", "modo"];
+    const base: Step[] = ["formato"];
+    if (isShake) base.push("liquido");
+    base.push("modo");
     if (mode === "recetas") base.push("catalogo");
     else base.push("crema", "toppings");
     if (isOpenTart) base.push("foto");
     base.push("resumen", "cesta");
     return base;
-  }, [mode, isOpenTart]);
+  }, [mode, isOpenTart, isShake]);
 
   const index = flow.indexOf(step);
   const stepInfo = { label: index + 1, total: flow.length, progress: ((index + 1) / flow.length) * 100 };
@@ -140,6 +145,8 @@ function Configurator() {
     switch (step) {
       case "formato":
         return !!format;
+      case "liquido":
+        return !!opcionLiquido(liquidoId);
       case "modo":
         return !!mode;
       case "crema":
@@ -201,8 +208,9 @@ function Configurator() {
   };
 
   const addToCart = () => {
-    const item = buildItem();
-    if (!item) return;
+    const base = buildItem();
+    if (!base) return;
+    const item = conLiquido(base, opcionLiquido(liquidoId));
     setCart((prev) => [...prev, item]);
     setStep("cesta");
   };
@@ -211,6 +219,7 @@ function Configurator() {
     setMode(null);
     setFormatId(null);
     setWantsPhoto(null);
+    setLiquidoId(null);
     resetSelection();
     setStep("formato");
   };
@@ -241,6 +250,7 @@ function Configurator() {
     setMode(null);
     setFormatId(null);
     setWantsPhoto(null);
+    setLiquidoId(null);
     setCart([]);
     resetSelection();
   };
@@ -378,6 +388,13 @@ function Configurator() {
           </>
         )}
 
+        {step === "liquido" && (
+          <>
+            <h1 className="mb-5 text-3xl font-black leading-tight">¿Cómo lo quieres?</h1>
+            <LiquidoPicker value={liquidoId} onSelect={setLiquidoId} />
+          </>
+        )}
+
         {step === "modo" && (
           <>
             <h1 className="mb-5 text-3xl font-black leading-tight">¿Cómo lo quieres?</h1>
@@ -477,6 +494,11 @@ function Configurator() {
             <h1 className="mb-4 text-3xl font-black leading-tight">Tu postre</h1>
             <div className="card-soft space-y-3 p-5">
               <Row label="Formato" value={`${format.name} · ${format.size}`} />
+              {isShake && liquidoLabel({ formato, ...opcionLiquido(liquidoId) }) && (
+                <p className="text-xs font-bold text-muted-foreground">
+                  {liquidoLabel({ formato, ...opcionLiquido(liquidoId) })}
+                </p>
+              )}
               {mode === "recetas" ? (
                 <>
                   {receta && <Row label="Receta" value={receta.nombre} />}

@@ -34,6 +34,8 @@ export type LineaPedido = {
   pack_id: number | null;
   pack_grupo: string | null;
   foto: boolean;
+  liquido: "leche" | "vegetal" | null;
+  extra_matcha: boolean;
   precio: number;
   created_at: string;
 };

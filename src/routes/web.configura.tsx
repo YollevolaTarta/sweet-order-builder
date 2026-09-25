@@ -5,6 +5,7 @@ import { useIngredientes } from "@/lib/ingredientes";
 import {
   CatalogoPicker,
   CremaPicker,
+  LiquidoPicker,
   Row,
   Swatch,
   ToppingsPicker,
@@ -19,6 +20,9 @@ import {
   cartUnidades,
   lineasDeCesta,
   itemDePack,
+  conLiquido,
+  liquidoLabel,
+  opcionLiquido,
   itemDeReceta,
   type CartItem,
 } from "@/lib/cart";
@@ -44,7 +48,7 @@ export const Route = createFileRoute("/web/configura")({
   component: WebConfigura,
 });
 
-type Step = "formato" | "catalogo" | "crema" | "toppings" | "resumen" | "cesta" | "checkout";
+type Step = "formato" | "liquido" | "catalogo" | "crema" | "toppings" | "resumen" | "cesta" | "checkout";
 type Entrega = "recoger" | "envio";
 type Franja = { franja: string; libres: number };
 
@@ -124,16 +128,18 @@ function WebConfigura() {
   const pack = packs.find((p) => p.pack_id === packId) ?? null;
 
   // Si se entra con una receta/pack ya elegido (landing), no se muestra el catálogo.
+  const [liquidoId, setLiquidoId] = useState<string | null>(null);
   const [preseleccion] = useState(() => mode === "recetas" && (!!recetaId || !!packId));
 
   const flow: Step[] = useMemo(() => {
     const base: Step[] = ["formato"];
+    if (isShake) base.push("liquido");
     if (mode === "recetas") {
       if (!preseleccion) base.push("catalogo");
     } else base.push("crema", "toppings");
     base.push("resumen", "cesta", "checkout");
     return base;
-  }, [mode, preseleccion]);
+  }, [mode, preseleccion, isShake]);
 
   const [step, setStep] = useState<Step>(() => {
     if (vista === "cesta") return "cesta";
@@ -213,6 +219,8 @@ function WebConfigura() {
     switch (step) {
       case "formato":
         return !!format;
+      case "liquido":
+        return !!opcionLiquido(liquidoId);
       case "catalogo":
         return !!receta || !!pack;
       case "crema":
@@ -248,9 +256,10 @@ function WebConfigura() {
 
   const goNext = () => {
     if (step === "resumen") {
-      const item = buildItem();
-      if (!item) return;
-      addToCart(item);
+      const base = buildItem();
+      if (!base) return;
+      addToCart(conLiquido(base, opcionLiquido(liquidoId)));
+      setLiquidoId(null);
       setStep("cesta");
       return;
     }
@@ -425,6 +434,13 @@ function WebConfigura() {
           </>
         )}
 
+        {step === "liquido" && (
+          <>
+            <h1 className="mb-5 text-3xl font-black leading-tight">¿Cómo lo quieres?</h1>
+            <LiquidoPicker value={liquidoId} onSelect={setLiquidoId} />
+          </>
+        )}
+
         {step === "catalogo" && (
           <>
             <h1 className="text-3xl font-black leading-tight">Recetas y promociones</h1>
@@ -470,6 +486,11 @@ function WebConfigura() {
             <h1 className="mb-4 text-3xl font-black leading-tight">Tu postre</h1>
             <div className="card-soft space-y-3 p-5">
               <Row label="Formato" value={`${format.name} · ${format.size}`} />
+              {formato && liquidoLabel({ formato, ...opcionLiquido(liquidoId) }) && (
+                <p className="text-xs font-bold text-muted-foreground">
+                  {liquidoLabel({ formato, ...opcionLiquido(liquidoId) })}
+                </p>
+              )}
               {mode === "recetas" ? (
                 <>
                   {receta && <Row label="Receta" value={receta.nombre} />}

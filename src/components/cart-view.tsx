@@ -1,5 +1,5 @@
 import { euro } from "@/lib/menu";
-import { cartTotal, type CartItem } from "@/lib/cart";
+import { cartTotal, liquidoLabel, type CartItem } from "@/lib/cart";
 
 export function CartView({
   cart,
@@ -20,6 +20,9 @@ export function CartView({
             <p className="text-xs font-extrabold uppercase text-muted-foreground">
               {item.formatName}
             </p>
+            {liquidoLabel(item) && (
+              <p className="text-xs font-bold text-muted-foreground">{liquidoLabel(item)}</p>
+            )}
             {item.detalle.map((d) => (
               <p key={d} className="text-xs font-bold text-muted-foreground">
                 · {d}
