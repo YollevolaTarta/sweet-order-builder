@@ -250,7 +250,9 @@ function WebConfigura() {
       // En la web nunca hay tarta abierta, así que no hay decoración con foto.
       foto: false,
       crema: cream.name,
+      crema_id: Number(cream.id),
       toppings: toppings.map((t) => t.name),
+      topping_ids: toppings.map((t) => Number(t.id)),
     };
   };
 
