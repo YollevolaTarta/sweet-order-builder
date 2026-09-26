@@ -315,40 +315,22 @@ function Configurator() {
   const isCesta = step === "cesta";
 
   return (
-    <main className="flex min-h-dvh flex-col bg-background">
-      <header className="flex items-center justify-between px-5 pt-4">
-        <span className="text-sm font-black tracking-tight">
-          Yo Llevo <span className="text-foreground">la Tarta</span>
-        </span>
+    <main className={`flex min-h-dvh flex-col ${isIntro ? "bg-brand-soft" : "bg-background"}`}>
+      <header className="flex min-h-9 items-center justify-between px-5 pt-4">
         {!isIntro && (
-          <span className="text-xs font-bold text-muted-foreground">
-            Paso {stepInfo.label} de {stepInfo.total}
-          </span>
+          <img src="/brand/yllt-isotipo.png" alt="Yo Llevo la Tarta" className="h-7 w-auto" />
         )}
-      </header>
-
-      {!isIntro && (
-        <div className="px-5 pt-3">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-300"
-              style={{ width: `${stepInfo.progress}%` }}
+...
+            <img
+              src="/brand/yllt-logo.png"
+              alt="Yo Llevo la Tarta"
+              className="mb-8 h-auto w-full max-w-sm object-contain"
             />
-          </div>
-        </div>
-      )}
-
-      <section
-        key={step}
-        className={`animate-step-in flex-1 px-5 pt-5 ${isIntro ? "flex flex-col items-center justify-center pb-10 text-center" : "pb-40"}`}
-      >
-        {isIntro && (
-          <>
-            <h1 className="mb-8 text-4xl font-black leading-tight">Crea tu postre único</h1>
+            <h1 className="mb-8 font-display text-4xl font-bold leading-tight">Crea tu postre único</h1>
             <button
               type="button"
               onClick={() => setStep("formato")}
-              className="rounded-full bg-primary px-12 py-5 text-xl font-extrabold text-primary-foreground shadow-card"
+              className="rounded-full bg-yllt-naranja px-12 py-5 text-xl font-extrabold text-yllt-naranja-foreground shadow-card"
             >
               Empezar
             </button>
