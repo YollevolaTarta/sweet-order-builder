@@ -30,7 +30,7 @@ export function CartView({
             ))}
           </div>
           <div className="flex flex-col items-end gap-2">
-            <span className="text-lg font-black text-brand-red">{euro(item.precio)}</span>
+            <span className="text-lg font-black text-foreground">{euro(item.precio)}</span>
             <button
               type="button"
               aria-label={`Quitar ${item.nombre}`}
@@ -45,7 +45,7 @@ export function CartView({
       {cart.length > 0 && (
         <div className="flex items-center justify-between px-1 pt-2">
           <span className="text-lg font-black">Total</span>
-          <span className="text-2xl font-black text-brand-red">{euro(cartTotal(cart))}</span>
+          <span className="text-2xl font-black text-foreground">{euro(cartTotal(cart))}</span>
         </div>
       )}
     </div>
