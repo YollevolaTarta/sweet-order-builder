@@ -13,7 +13,9 @@ export type CartItem = {
   precio: number;
   foto: boolean;
   crema?: string;
+  crema_id?: number;
   toppings?: string[];
+  topping_ids?: number[];
   receta?: Receta;
   pack?: Pack;
   liquido?: Liquido | null;

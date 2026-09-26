@@ -50,6 +50,9 @@ export type Receta = {
   temporada?: string | null;
   store_id: string;
   orden: number;
+  crema_id: number | null;
+  topping_1_id: number | null;
+  topping_2_id: number | null;
   precio_lata: number;
   precio_abierta: number;
   precio_shake: number;
