@@ -152,7 +152,7 @@ function Configurator() {
       case "crema":
         return !!cream;
       case "toppings":
-        return isShake ? toppingIds.length === 2 : toppingIds.length >= 1;
+        return isShake ? toppingIds.length === 2 : true;
       case "catalogo":
         return !!receta || !!pack;
       case "foto":
@@ -443,7 +443,7 @@ function Configurator() {
           <>
             <h1 className="text-3xl font-black leading-tight">Elige tus toppings</h1>
             <p className="mb-6 text-sm font-bold text-muted-foreground">
-              {isShake ? "Elige exactamente 2 — incluidos en el precio" : "Mínimo 1, máximo 2"}
+              {isShake ? "Elige exactamente 2 — incluidos en el precio" : "Máximo 2"}
             </p>
             <ToppingsPicker toppingIds={toppingIds} isShake={isShake} onToggle={toggleTopping} />
           </>
