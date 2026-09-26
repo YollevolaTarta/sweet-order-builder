@@ -80,7 +80,7 @@ function WebRecetas() {
             type="button"
             disabled={!opcionLiquido(liquidoId)}
             onClick={() => anadir(shakeFormat, liquidoId)}
-            className="flex-1 rounded-full bg-brand-red px-6 py-4 text-lg font-extrabold text-brand-red-foreground shadow-pop transition disabled:opacity-50"
+            className="flex-1 rounded-full bg-yllt-naranja px-6 py-4 text-lg font-extrabold text-yllt-naranja-foreground shadow-card transition disabled:opacity-50"
           >
             Continuar
           </button>
@@ -115,7 +115,7 @@ function WebRecetas() {
                 <div>
                   <p className="text-xl font-black">{f.name}</p>
                   <p className="text-sm font-bold text-muted-foreground">{f.size}</p>
-                  <p className="text-lg font-extrabold text-brand-red">
+                  <p className="text-lg font-extrabold text-foreground">
                     {euro(precioPorFormato(seleccion, fmt))}
                   </p>
                 </div>

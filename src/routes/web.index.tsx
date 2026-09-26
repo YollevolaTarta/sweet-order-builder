@@ -67,7 +67,7 @@ function WebLanding() {
                   </span>
                 ))}
               </span>
-              <span className="mt-3 block text-lg font-black text-brand-red">
+              <span className="mt-3 block text-lg font-black text-foreground">
                 Desde {euro(p.precio_lata)}
               </span>
             </button>

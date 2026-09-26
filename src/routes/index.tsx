@@ -296,7 +296,10 @@ function Configurator() {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
         <p className="text-lg font-bold text-muted-foreground">Tu pedido es el</p>
-        <p className="animate-pop text-8xl font-black text-brand-red">{orderLabel}</p>
+        <div className="flex items-center gap-4">
+          <img src="/brand/yllt-sello.png" alt="" aria-hidden="true" className="h-16 w-16 object-contain" />
+          <p className="animate-pop font-display text-8xl font-bold text-yllt-naranja">{orderLabel}</p>
+        </div>
         <p className="max-w-xs text-lg font-bold">Te avisamos cuando esté listo 🍰</p>
         <button
           onClick={resetAll}
@@ -315,7 +318,7 @@ function Configurator() {
     <main className="flex min-h-dvh flex-col bg-background">
       <header className="flex items-center justify-between px-5 pt-4">
         <span className="text-sm font-black tracking-tight">
-          Yo Llevo <span className="text-brand-red">la Tarta</span>
+          Yo Llevo <span className="text-foreground">la Tarta</span>
         </span>
         {!isIntro && (
           <span className="text-xs font-bold text-muted-foreground">
@@ -370,7 +373,7 @@ function Configurator() {
                   <div>
                     <p className="text-xl font-black">{f.name}</p>
                     <p className="text-sm font-bold text-muted-foreground">{f.size}</p>
-                    <p className="text-base font-extrabold text-brand-red">
+                    <p className="text-base font-extrabold text-foreground">
                       {f.id === "cake-shake" ? euro(f.basePrice) : `Desde ${euro(f.basePrice)}`}
                     </p>
                     {f.note && (
@@ -531,10 +534,10 @@ function Configurator() {
               )}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-lg font-black">Este postre</span>
-                <span className="text-2xl font-black text-brand-red">{euro(itemPrecio)}</span>
+                <span className="text-2xl font-black text-foreground">{euro(itemPrecio)}</span>
               </div>
             </div>
-            {error && <p className="mt-3 text-sm font-bold text-brand-red">{error}</p>}
+            {error && <p className="mt-3 text-sm font-bold text-destructive">{error}</p>}
           </>
         )}
 
@@ -546,12 +549,12 @@ function Configurator() {
               cart={cart}
               onRemove={(uid) => setCart((prev) => prev.filter((i) => i.uid !== uid))}
             />
-            {error && <p className="mt-3 text-sm font-bold text-brand-red">{error}</p>}
+            {error && <p className="mt-3 text-sm font-bold text-destructive">{error}</p>}
             <div className="mt-8 grid gap-3">
               <button
                 disabled={sending || cart.length === 0}
                 onClick={confirm}
-                className="rounded-full bg-brand-red px-8 py-5 text-xl font-extrabold text-brand-red-foreground shadow-pop transition disabled:opacity-50"
+                className="rounded-full bg-yllt-naranja px-8 py-5 text-xl font-extrabold text-yllt-naranja-foreground shadow-card transition disabled:opacity-50"
               >
                 {sending ? "Enviando…" : "Pagar"}
               </button>
@@ -578,7 +581,7 @@ function Configurator() {
             </button>
             <div className="flex-1">
               <p className="text-[11px] font-bold uppercase text-muted-foreground">Total</p>
-              <p className="text-2xl font-black leading-none text-brand-red">{euro(footerTotal)}</p>
+              <p className="text-2xl font-black leading-none text-foreground">{euro(footerTotal)}</p>
             </div>
             <button
               disabled={!canContinue}

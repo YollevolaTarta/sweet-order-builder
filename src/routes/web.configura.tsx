@@ -358,7 +358,10 @@ function WebConfigura() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
         <p className="text-lg font-bold text-muted-foreground">Tu pedido es el</p>
-        <p className="animate-pop text-7xl font-black text-brand-red">{done.label}</p>
+        <div className="flex items-center gap-4">
+          <img src="/brand/yllt-sello.png" alt="" aria-hidden="true" className="h-14 w-14 object-contain" />
+          <p className="animate-pop font-display text-7xl font-bold text-yllt-naranja">{done.label}</p>
+        </div>
         {entrega === "recoger" && franja ? (
           <p className="max-w-xs text-lg font-bold">
             Recógelo el {diaLabel(franja)} a las {horaLabel(franja)} en {STORE_NAME} 🍰
@@ -416,7 +419,7 @@ function WebConfigura() {
                   <div>
                     <p className="text-xl font-black">{f.name}</p>
                     <p className="text-sm font-bold text-muted-foreground">{f.size}</p>
-                    <p className="text-base font-extrabold text-brand-red">
+                    <p className="text-base font-extrabold text-foreground">
                       {f.id === "cake-shake" ? euro(f.basePrice) : `Desde ${euro(f.basePrice)}`}
                     </p>
                     {f.note && (
@@ -512,7 +515,7 @@ function WebConfigura() {
               <hr className="border-border" />
               <div className="flex items-center justify-between pt-1">
                 <span className="text-lg font-black">Este postre</span>
-                <span className="text-2xl font-black text-brand-red">{euro(itemPrecio)}</span>
+                <span className="text-2xl font-black text-foreground">{euro(itemPrecio)}</span>
               </div>
             </div>
           </>
@@ -636,7 +639,7 @@ function WebConfigura() {
               <Field label="Email" type="email" value={email} onChange={setEmail} />
               <Field label="Teléfono" type="tel" value={telefono} onChange={setTelefono} />
             </div>
-            {error && <p className="mt-3 text-sm font-bold text-brand-red">{error}</p>}
+            {error && <p className="mt-3 text-sm font-bold text-destructive">{error}</p>}
           </>
         )}
       </section>
@@ -651,7 +654,7 @@ function WebConfigura() {
           </button>
           <div className="flex-1">
             <p className="text-[11px] font-bold uppercase text-muted-foreground">Total</p>
-            <p className="text-2xl font-black leading-none text-brand-red">{euro(footerTotal)}</p>
+            <p className="text-2xl font-black leading-none text-foreground">{euro(footerTotal)}</p>
           </div>
           {step === "cesta" ? null : step !== "checkout" ? (
             <button
@@ -665,7 +668,7 @@ function WebConfigura() {
             <button
               disabled={sending || !clienteOk || !entregaOk}
               onClick={confirm}
-              className="rounded-full bg-brand-red px-7 py-4 text-lg font-extrabold text-brand-red-foreground shadow-pop transition disabled:opacity-50"
+              className="rounded-full bg-yllt-naranja px-7 py-4 text-lg font-extrabold text-yllt-naranja-foreground shadow-card transition disabled:opacity-50"
             >
               {sending ? "Enviando…" : "CONFIRMAR"}
             </button>

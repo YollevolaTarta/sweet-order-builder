@@ -166,7 +166,7 @@ export function ToppingsPicker({
               {category.name}
             </h2>
             {!isShake && (
-              <span className="text-sm font-extrabold text-brand-red">— {rango(category.id)}</span>
+              <span className="text-sm font-bold text-muted-foreground">— {rango(category.id)}</span>
             )}
           </div>
           <div className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2">
@@ -202,7 +202,7 @@ export function ToppingsPicker({
                   </span>
                   <span className="block min-h-10 text-sm font-black leading-tight">{topping.name}</span>
                   {!isShake && (
-                    <span className="mt-1 block text-sm font-black text-brand-red">
+                    <span className="mt-1 block text-sm font-black text-foreground">
                       {euro(topping.price)}
                     </span>
                   )}
@@ -268,7 +268,7 @@ export function CatalogoPicker({
                     </span>
                   )}
                   <span className="block min-h-14 pr-6 text-sm font-black leading-tight">{r.nombre}</span>
-                  <span className="mt-2 block text-base font-black text-brand-red">{priceLabel(r)}</span>
+                  <span className="mt-2 block text-base font-black text-foreground">{priceLabel(r)}</span>
                 </button>
               );
             })}
@@ -308,7 +308,7 @@ export function CatalogoPicker({
                         </span>
                       ))}
                     </span>
-                    <span className="mt-2 block text-base font-black text-brand-red">{priceLabel(p)}</span>
+                    <span className="mt-2 block text-base font-black text-foreground">{priceLabel(p)}</span>
                   </button>
                 );
               })}
