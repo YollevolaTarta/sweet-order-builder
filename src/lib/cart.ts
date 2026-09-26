@@ -13,7 +13,9 @@ export type CartItem = {
   precio: number;
   foto: boolean;
   crema?: string;
+  crema_id?: number;
   toppings?: string[];
+  topping_ids?: number[];
   receta?: Receta;
   pack?: Pack;
   liquido?: Liquido | null;
@@ -70,8 +72,11 @@ export function lineasDeItem(item: CartItem, pedidoId: number): Record<string, u
       receta_id: r.receta_id,
       receta: r.nombre,
       crema: r.crema,
+      crema_id: r.crema_id ?? null,
       topping_1: r.topping_1,
+      topping_1_id: r.topping_1_id ?? null,
       topping_2: r.topping_2,
+      topping_2_id: r.topping_2_id ?? null,
       foto: item.foto,
       precio: unit,
       ...liquidoCols(item),
@@ -87,8 +92,11 @@ export function lineasDeItem(item: CartItem, pedidoId: number): Record<string, u
         receta_id: r.receta_id,
         receta: r.nombre,
         crema: r.crema,
+        crema_id: r.crema_id ?? null,
         topping_1: r.topping_1,
+        topping_1_id: r.topping_1_id ?? null,
         topping_2: r.topping_2,
+        topping_2_id: r.topping_2_id ?? null,
         foto: item.foto,
         precio: Number(item.precio.toFixed(2)),
         ...liquidoCols(item),
@@ -101,8 +109,11 @@ export function lineasDeItem(item: CartItem, pedidoId: number): Record<string, u
       tipo: "personalizada",
       formato: item.formato,
       crema: item.crema ?? null,
+      crema_id: item.crema_id ?? null,
       topping_1: item.toppings?.[0] ?? null,
+      topping_1_id: item.topping_ids?.[0] ?? null,
       topping_2: item.toppings?.[1] ?? null,
+      topping_2_id: item.topping_ids?.[1] ?? null,
       foto: item.foto,
       precio: Number(item.precio.toFixed(2)),
       ...liquidoCols(item),

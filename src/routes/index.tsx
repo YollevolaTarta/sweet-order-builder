@@ -203,7 +203,9 @@ function Configurator() {
       precio,
       foto,
       crema: cream.name,
+      crema_id: Number(cream.id),
       toppings: toppings.map((t) => t.name),
+      topping_ids: toppings.map((t) => Number(t.id)),
     };
   };
 
