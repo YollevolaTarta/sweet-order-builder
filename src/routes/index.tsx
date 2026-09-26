@@ -320,7 +320,30 @@ function Configurator() {
         {!isIntro && (
           <img src="/brand/yllt-isotipo.png" alt="Yo Llevo la Tarta" className="h-7 w-auto" />
         )}
-...
+        {!isIntro && (
+          <span className="text-xs font-bold text-muted-foreground">
+            Paso {stepInfo.label} de {stepInfo.total}
+          </span>
+        )}
+      </header>
+
+      {!isIntro && (
+        <div className="px-5 pt-3">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${stepInfo.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      <section
+        key={step}
+        className={`animate-step-in flex-1 px-5 pt-5 ${isIntro ? "flex flex-col items-center justify-center pb-10 text-center" : "pb-40"}`}
+      >
+        {isIntro && (
+          <>
             <img
               src="/brand/yllt-logo.png"
               alt="Yo Llevo la Tarta"
