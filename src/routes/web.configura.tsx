@@ -1,5 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  cargarConfigWeb,
+  confirmarPedido,
+  fechaEnvioLabel,
+  itemsParaServidor,
+  mensajeError,
+  pedirPresupuesto,
+  plazoLabel,
+  type ConfigWeb,
+  type DatosPedidoWeb,
+  type Presupuesto,
+} from "@/lib/checkout-web";
 import { STORE_ID, euro } from "@/lib/menu";
 import { useIngredientes } from "@/lib/ingredientes";
 import {
@@ -18,7 +30,6 @@ import {
   cartTieneShake,
   cartTotal,
   cartUnidades,
-  lineasDeCesta,
   itemDePack,
   conLiquido,
   liquidoLabel,
@@ -63,31 +74,23 @@ const diaLabel = (iso: string) =>
 const horaLabel = (iso: string) =>
   new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
-// Envíos: salen miércoles y jueves a las 16:00 (hora de Madrid).
-// Jueves 16:01 → miércoles 16:00: sale el miércoles. Miércoles 16:01 → jueves 16:00: sale el jueves.
-function fechaEnvio(): Date {
-  const ahora = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Europe/Madrid" }),
+// "Condiciones de compra" → /condiciones y "alérgenos" → /alergenos dentro del texto de la BD.
+function textoConEnlaces(texto: string) {
+  const partes = texto.split(/(Condiciones de compra|alérgenos)/);
+  return partes.map((p, i) =>
+    p === "Condiciones de compra" ? (
+      <a key={i} href="/condiciones" target="_blank" rel="noopener" className="underline">
+        {p}
+      </a>
+    ) : p === "alérgenos" ? (
+      <a key={i} href="/alergenos" target="_blank" rel="noopener" className="underline">
+        {p}
+      </a>
+    ) : (
+      p
+    ),
   );
-  const dow = ahora.getDay(); // 0 dom … 3 mié … 4 jue
-  const pasoCorte = ahora.getHours() > 16 || (ahora.getHours() === 16 && ahora.getMinutes() > 0);
-  let objetivo: 3 | 4;
-  if (dow === 3) objetivo = pasoCorte ? 4 : 3;
-  else if (dow === 4) objetivo = pasoCorte ? 3 : 4;
-  else objetivo = 3;
-  const delta = (objetivo - dow + 7) % 7; // 0 = sale hoy (antes del corte de las 16:00)
-  const salida = new Date(ahora);
-  salida.setDate(ahora.getDate() + delta);
-  return salida;
 }
-
-const envioLabel = (d: Date) =>
-  d.toLocaleDateString("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "Europe/Madrid",
-  });
 
 function WebConfigura() {
   const navigate = useNavigate();
@@ -167,7 +170,24 @@ function WebConfigura() {
   const [ciudad, setCiudad] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ label: string } | null>(null);
+  const [done, setDone] = useState<{
+    numero: string | null;
+    entrega: Entrega;
+    franja: string | null;
+    fecha_envio: string | null;
+  } | null>(null);
+
+  // Config pública, casillas y presupuesto del servidor.
+  const [config, setConfig] = useState<ConfigWeb | null>(null);
+  const [configError, setConfigError] = useState(false);
+  const [configKey, setConfigKey] = useState(0);
+  const [aceptaCondiciones, setAceptaCondiciones] = useState(false);
+  const [aceptaComercial, setAceptaComercial] = useState(false);
+  const [presupuesto, setPresupuesto] = useState<Presupuesto | null>(null);
+  const [presupuestoError, setPresupuestoError] = useState<string | null>(null);
+  const [cargandoPresupuesto, setCargandoPresupuesto] = useState(false);
+  const [quoteKey, setQuoteKey] = useState(0);
+  const [franjasKey, setFranjasKey] = useState(0);
 
   const hayShake = cartTieneShake(cart);
   const numTartas = Math.max(1, cartUnidades(cart));
@@ -190,7 +210,77 @@ function WebConfigura() {
     return () => {
       active = false;
     };
-  }, [step]);
+  }, [step, franjasKey]);
+
+  useEffect(() => {
+    if (step !== "checkout") return;
+    let active = true;
+    setConfigError(false);
+    cargarConfigWeb()
+      .then((c) => active && setConfig(c))
+      .catch(() => active && setConfigError(true));
+    return () => {
+      active = false;
+    };
+  }, [step, configKey]);
+
+  const cp = codigoPostal.trim();
+  const cpCompleto = /^[0-9]{5}$/.test(cp);
+  const itemsServidor = useMemo(() => itemsParaServidor(cart), [cart]);
+  const datosBase = useMemo(
+    () => ({
+      store_id: STORE_ID,
+      entrega,
+      ...(entrega === "recoger" && franja ? { franja } : {}),
+      items: itemsServidor,
+      cliente: {
+        nombre: nombre.trim(),
+        apellidos: apellidos.trim(),
+        email: email.trim(),
+        telefono: telefono.trim(),
+        ...(entrega === "envio"
+          ? { direccion: direccion.trim(), codigo_postal: cp, ciudad: ciudad.trim() }
+          : {}),
+      },
+    }),
+    [entrega, franja, itemsServidor, nombre, apellidos, email, telefono, direccion, cp, ciudad],
+  );
+
+  // Presupuesto: solo depende de cesta, entrega, franja y CP (no de nombre, email…).
+  const datosRef = useRef(datosBase);
+  datosRef.current = datosBase;
+  useEffect(() => {
+    if (step !== "checkout" || cart.length === 0) return;
+    if (entrega === "envio" && !cpCompleto) {
+      setPresupuesto(null);
+      setPresupuestoError(null);
+      return;
+    }
+    let active = true;
+    setCargandoPresupuesto(true);
+    const t = setTimeout(async () => {
+      const r = await pedirPresupuesto({
+        ...datosRef.current,
+        acepta_condiciones: false,
+        acepta_comercial: false,
+      });
+      if (!active) return;
+      setCargandoPresupuesto(false);
+      if (r.ok) {
+        setPresupuesto(r);
+        setPresupuestoError(null);
+      } else {
+        setPresupuesto(null);
+        setPresupuestoError(mensajeError(r));
+      }
+    }, 300);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [step, itemsServidor, entrega, franja, cp, cpCompleto, quoteKey, cart.length]);
+
+  const fechaEnvioActual = entrega === "envio" ? (presupuesto?.fecha_envio ?? null) : null;
 
   const itemPrecio = useMemo(() => {
     if (!format || !formato) return 0;
@@ -214,6 +304,16 @@ function WebConfigura() {
     entrega === "recoger"
       ? !!franja
       : direccion.trim().length > 3 && /^[0-9]{5}$/.test(codigoPostal.trim()) && ciudad.trim().length > 1;
+  const puedePagar =
+    !sending &&
+    cart.length > 0 &&
+    !!config &&
+    aceptaCondiciones &&
+    clienteOk &&
+    entregaOk &&
+    !!presupuesto &&
+    !presupuestoError &&
+    !cargandoPresupuesto;
 
   const canContinue = (() => {
     switch (step) {
@@ -292,87 +392,83 @@ function WebConfigura() {
   };
 
   const confirm = async () => {
-    if (cart.length === 0 || !clienteOk || !entregaOk) return;
+    if (!puedePagar || !presupuesto || !config) return;
     setSending(true);
     setError(null);
-    const precio = Number(cestaTotal.toFixed(2));
-    // PROVISIONAL: marcamos el pedido como pagado con metodo_pago 'prueba'
-    // hasta integrar la pasarela de pago real.
-    const { data, error: err } = await supabaseYLLT
-      .from("pedidos")
-      .insert({
-        store_id: STORE_ID,
-        canal: "web",
-        tipo_pedido: entrega,
-        franja_recogida: entrega === "recoger" ? franja : null,
-        estado: "pendiente",
-        pago: "pagado",
-        metodo_pago: "prueba",
-        total: precio,
-      })
-      .select("id, numero_pedido, serie")
-      .single();
-
-    if (err || !data) {
-      setSending(false);
-      setError("No hemos podido enviar el pedido. Inténtalo otra vez.");
-      return;
-    }
-
-    const lineas = lineasDeCesta(cart, data.id);
-
-    const { error: lineErr } = await supabaseYLLT.from("lineas_pedido").insert(lineas);
-    if (lineErr) {
-      setSending(false);
-      setError(
-        /shake/i.test(lineErr.message)
-          ? "El cake shake solo se puede recoger en tienda. Cambia la entrega a recogida."
-          : "No hemos podido enviar el pedido. Inténtalo otra vez.",
-      );
-      return;
-    }
-
-    // pedido_clientes solo permite insertar, nunca leer: sin .select().
-    const { error: cliErr } = await supabaseYLLT.from("pedido_clientes").insert({
-      pedido_id: data.id,
-      nombre: nombre.trim(),
-      apellidos: apellidos.trim(),
-      email: email.trim(),
-      telefono: telefono.trim(),
-      ...(entrega === "envio"
-        ? {
-            direccion: direccion.trim(),
-            codigo_postal: codigoPostal.trim(),
-            ciudad: ciudad.trim(),
-          }
+    const datos: DatosPedidoWeb = {
+      ...datosBase,
+      acepta_condiciones: true,
+      condiciones_version: config.condiciones_version,
+      acepta_comercial: aceptaComercial,
+      total_esperado: presupuesto.total,
+      ...(entrega === "envio" && presupuesto.fecha_envio
+        ? { fecha_envio_esperada: presupuesto.fecha_envio }
         : {}),
-    });
+    };
+    const r = await confirmarPedido(datos);
     setSending(false);
-    if (cliErr) {
-      setError("No hemos podido guardar tus datos. Inténtalo otra vez.");
+    if (r.ok) {
+      clearCart();
+      setDone({
+        numero: r.numero,
+        entrega,
+        franja: r.franja_recogida ?? franja,
+        fecha_envio: r.fecha_envio,
+      });
       return;
     }
-    clearCart();
-    setDone({ label: `${data.serie}-${String(data.numero_pedido ?? 0).padStart(2, "0")}` });
+    setError(mensajeError(r));
+    switch (r.error) {
+      case "fecha_envio_actualizada":
+        setPresupuesto((p) =>
+          p
+            ? {
+                ...p,
+                fecha_envio: (r.fecha_envio as string) ?? p.fecha_envio,
+                plazo_cancelacion: (r.plazo_cancelacion as string) ?? p.plazo_cancelacion,
+                puede_cancelar: r.puede_cancelar !== undefined ? !!r.puede_cancelar : p.puede_cancelar,
+              }
+            : p,
+        );
+        break;
+      case "precio_actualizado":
+        setQuoteKey((k) => k + 1);
+        break;
+      case "franja_completa":
+      case "franja_no_valida":
+        setFranja(null);
+        setFranjasKey((k) => k + 1);
+        break;
+      case "condiciones_version_no_vigente":
+        setAceptaCondiciones(false);
+        setConfigKey((k) => k + 1);
+        break;
+    }
   };
 
   if (done) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="text-lg font-bold text-muted-foreground">Tu pedido es el</p>
-        <div className="flex items-center gap-4">
-          <img src="/brand/yllt-sello.png" alt="" aria-hidden="true" className="h-14 w-14 object-contain" />
-          <p className="animate-pop font-display text-7xl font-bold text-yllt-naranja">{done.label}</p>
-        </div>
-        {entrega === "recoger" && franja ? (
-          <p className="max-w-xs text-lg font-bold">
-            Recógelo el {diaLabel(franja)} a las {horaLabel(franja)} en {STORE_NAME} 🍰
-          </p>
+        {done.numero ? (
+          <>
+            <p className="text-lg font-bold text-muted-foreground">Tu pedido es el</p>
+            <div className="flex items-center gap-4">
+              <img src="/brand/yllt-sello.png" alt="" aria-hidden="true" className="h-14 w-14 object-contain" />
+              <p className="animate-pop font-display text-7xl font-bold text-yllt-naranja">{done.numero}</p>
+            </div>
+          </>
         ) : (
-          <p className="max-w-xs text-lg font-bold">
-            Tu pedido saldrá el {envioLabel(fechaEnvio())} 🚚
-          </p>
+          <p className="text-2xl font-black">Pedido recibido, pendiente de pago</p>
         )}
+        {done.entrega === "recoger" && done.franja ? (
+          <p className="max-w-xs text-lg font-bold">
+            Recógelo el {diaLabel(done.franja)} a las {horaLabel(done.franja)} en {STORE_NAME} 🍰
+          </p>
+        ) : done.fecha_envio ? (
+          <p className="max-w-xs text-lg font-bold">
+            Tu pedido saldrá el {fechaEnvioLabel(done.fecha_envio)} 🚚
+          </p>
+        ) : null}
         <button
           onClick={() => {
             order.reset();
@@ -553,6 +649,11 @@ function WebConfigura() {
 
         {step === "checkout" && (
           <>
+            {presupuesto?.pago_simulado && (
+              <p className="mb-4 rounded-xl bg-warn-soft px-4 py-3 text-center text-sm font-black uppercase tracking-wide text-foreground">
+                MODO PRUEBAS — no se cobra
+              </p>
+            )}
             <h1 className="mb-4 text-3xl font-black leading-tight">¿Cómo lo recibes?</h1>
             <div className="mb-6 grid grid-cols-2 gap-3">
               {(
@@ -616,14 +717,16 @@ function WebConfigura() {
               </section>
             ) : (
               <section className="mb-6 grid gap-3">
-                <div className="card-soft border-2 border-primary bg-accent p-4">
-                  <p className="text-lg font-black leading-snug">
-                    📦 Tu pedido saldrá el {envioLabel(fechaEnvio())}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-muted-foreground">
-                    Enviamos los miércoles y los jueves. Transporte en frío en 24h.
-                  </p>
-                </div>
+                {fechaEnvioActual && (
+                  <div className="card-soft border-2 border-primary bg-accent p-4">
+                    <p className="text-lg font-black leading-snug">
+                      📦 Tu pedido saldrá el {fechaEnvioLabel(fechaEnvioActual)}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-muted-foreground">
+                      Enviamos los miércoles y los jueves. Transporte en frío en 24h.
+                    </p>
+                  </div>
+                )}
                 <Field label="Dirección" value={direccion} onChange={setDireccion} />
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Código postal" value={codigoPostal} onChange={setCodigoPostal} />
@@ -641,6 +744,75 @@ function WebConfigura() {
               <Field label="Email" type="email" value={email} onChange={setEmail} />
               <Field label="Teléfono" type="tel" value={telefono} onChange={setTelefono} />
             </div>
+            <p className="mt-2 text-[11px] font-normal text-muted-foreground">
+              YO LLEVO LA TARTA, S.L.U. trata tus datos para gestionar tu pedido. Más información y tus derechos en la{" "}
+              <a href="/privacidad" className="underline">Política de privacidad</a>.
+            </p>
+
+            <div className="card-soft mt-6 space-y-2 p-4">
+              <div className="flex justify-between text-base font-bold">
+                <span>Productos</span>
+                <span>{presupuesto ? euro(presupuesto.subtotal) : "—"}</span>
+              </div>
+              {entrega === "envio" && (
+                <div className="flex justify-between text-base font-bold">
+                  <span>Envío</span>
+                  <span>{presupuesto ? euro(presupuesto.envio) : "—"}</span>
+                </div>
+              )}
+              <hr className="border-border" />
+              <div className="flex justify-between text-lg font-black">
+                <span>Total (IVA incluido)</span>
+                <span>{presupuesto ? euro(presupuesto.total) : "—"}</span>
+              </div>
+              {cargandoPresupuesto && (
+                <p className="text-xs font-bold text-muted-foreground">Calculando…</p>
+              )}
+            </div>
+            {presupuestoError && (
+              <p className="mt-3 text-sm font-bold text-destructive">{presupuestoError}</p>
+            )}
+
+            {config ? (
+              <div className="mt-5 space-y-3">
+                <label className="flex items-start gap-3 text-sm font-bold">
+                  <input
+                    type="checkbox"
+                    checked={aceptaCondiciones}
+                    onChange={(e) => setAceptaCondiciones(e.target.checked)}
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-brand-strong)]"
+                  />
+                  <span>{textoConEnlaces(config.texto_casilla_condiciones)}</span>
+                </label>
+                <label className="flex items-start gap-3 text-sm font-bold">
+                  <input
+                    type="checkbox"
+                    checked={aceptaComercial}
+                    onChange={(e) => setAceptaComercial(e.target.checked)}
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-brand-strong)]"
+                  />
+                  <span>{config.texto_casilla_comercial}</span>
+                </label>
+              </div>
+            ) : (
+              <p className="mt-5 text-sm font-bold text-muted-foreground">
+                {configError ? (
+                  <button type="button" className="underline" onClick={() => setConfigKey((k) => k + 1)}>
+                    No hemos podido cargar las condiciones. Reintentar
+                  </button>
+                ) : (
+                  "Cargando condiciones…"
+                )}
+              </p>
+            )}
+
+            {presupuesto && (entrega === "envio" || franja) && (
+              <p className="mt-4 text-xs font-bold text-muted-foreground">
+                {presupuesto.puede_cancelar && presupuesto.plazo_cancelacion
+                  ? `Producto fresco y hecho a tu gusto: no tiene derecho de desistimiento. Puedes cancelarlo gratis hasta el ${plazoLabel(presupuesto.plazo_cancelacion)}.`
+                  : "Producto fresco y hecho a tu gusto: no tiene derecho de desistimiento y, una vez pagado, este pedido ya no se puede cancelar."}
+              </p>
+            )}
             {error && <p className="mt-3 text-sm font-bold text-destructive">{error}</p>}
           </>
         )}
@@ -656,7 +828,9 @@ function WebConfigura() {
           </button>
           <div className="flex-1">
             <p className="text-[11px] font-bold uppercase text-muted-foreground">Total</p>
-            <p className="text-2xl font-black leading-none text-foreground">{euro(footerTotal)}</p>
+            <p className="text-2xl font-black leading-none text-foreground">
+              {step === "checkout" ? (presupuesto ? euro(presupuesto.total) : "—") : euro(footerTotal)}
+            </p>
           </div>
           {step === "cesta" ? null : step !== "checkout" ? (
             <button
@@ -668,11 +842,11 @@ function WebConfigura() {
             </button>
           ) : (
             <button
-              disabled={sending || !clienteOk || !entregaOk}
+              disabled={!puedePagar}
               onClick={confirm}
               className="rounded-full bg-yllt-naranja px-7 py-4 text-lg font-extrabold text-yllt-naranja-foreground shadow-card transition disabled:opacity-50"
             >
-              {sending ? "Enviando…" : "CONFIRMAR"}
+              {sending ? "Enviando…" : "Pagar ahora"}
             </button>
           )}
         </div>
