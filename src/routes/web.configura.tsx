@@ -167,7 +167,24 @@ function WebConfigura() {
   const [ciudad, setCiudad] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ label: string } | null>(null);
+  const [done, setDone] = useState<{
+    numero: string | null;
+    entrega: Entrega;
+    franja: string | null;
+    fecha_envio: string | null;
+  } | null>(null);
+
+  // Config pública, casillas y presupuesto del servidor.
+  const [config, setConfig] = useState<ConfigWeb | null>(null);
+  const [configError, setConfigError] = useState(false);
+  const [configKey, setConfigKey] = useState(0);
+  const [aceptaCondiciones, setAceptaCondiciones] = useState(false);
+  const [aceptaComercial, setAceptaComercial] = useState(false);
+  const [presupuesto, setPresupuesto] = useState<Presupuesto | null>(null);
+  const [presupuestoError, setPresupuestoError] = useState<string | null>(null);
+  const [cargandoPresupuesto, setCargandoPresupuesto] = useState(false);
+  const [quoteKey, setQuoteKey] = useState(0);
+  const [franjasKey, setFranjasKey] = useState(0);
 
   const hayShake = cartTieneShake(cart);
   const numTartas = Math.max(1, cartUnidades(cart));
@@ -190,7 +207,77 @@ function WebConfigura() {
     return () => {
       active = false;
     };
-  }, [step]);
+  }, [step, franjasKey]);
+
+  useEffect(() => {
+    if (step !== "checkout") return;
+    let active = true;
+    setConfigError(false);
+    cargarConfigWeb()
+      .then((c) => active && setConfig(c))
+      .catch(() => active && setConfigError(true));
+    return () => {
+      active = false;
+    };
+  }, [step, configKey]);
+
+  const cp = codigoPostal.trim();
+  const cpCompleto = /^[0-9]{5}$/.test(cp);
+  const itemsServidor = useMemo(() => itemsParaServidor(cart), [cart]);
+  const datosBase = useMemo(
+    () => ({
+      store_id: STORE_ID,
+      entrega,
+      ...(entrega === "recoger" && franja ? { franja } : {}),
+      items: itemsServidor,
+      cliente: {
+        nombre: nombre.trim(),
+        apellidos: apellidos.trim(),
+        email: email.trim(),
+        telefono: telefono.trim(),
+        ...(entrega === "envio"
+          ? { direccion: direccion.trim(), codigo_postal: cp, ciudad: ciudad.trim() }
+          : {}),
+      },
+    }),
+    [entrega, franja, itemsServidor, nombre, apellidos, email, telefono, direccion, cp, ciudad],
+  );
+
+  // Presupuesto: solo depende de cesta, entrega, franja y CP (no de nombre, email…).
+  const datosRef = useRef(datosBase);
+  datosRef.current = datosBase;
+  useEffect(() => {
+    if (step !== "checkout" || cart.length === 0) return;
+    if (entrega === "envio" && !cpCompleto) {
+      setPresupuesto(null);
+      setPresupuestoError(null);
+      return;
+    }
+    let active = true;
+    setCargandoPresupuesto(true);
+    const t = setTimeout(async () => {
+      const r = await pedirPresupuesto({
+        ...datosRef.current,
+        acepta_condiciones: false,
+        acepta_comercial: false,
+      });
+      if (!active) return;
+      setCargandoPresupuesto(false);
+      if (r.ok) {
+        setPresupuesto(r);
+        setPresupuestoError(null);
+      } else {
+        setPresupuesto(null);
+        setPresupuestoError(mensajeError(r));
+      }
+    }, 300);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [step, itemsServidor, entrega, franja, cp, cpCompleto, quoteKey, cart.length]);
+
+  const fechaEnvioActual = entrega === "envio" ? (presupuesto?.fecha_envio ?? null) : null;
 
   const itemPrecio = useMemo(() => {
     if (!format || !formato) return 0;
