@@ -1,5 +1,7 @@
 # Sweet Order Builder
 
+> **Nota (13/10/2026) — documento histórico.** Este README conserva la descripción original del MVP (prompt inicial de Lovable). No describe el estado vigente. El estado vigente está en `yllt-database/docs/contratos_base_compartida.md` (contratos) y `yllt-database/docs/estado_sistema_y_riesgos.md` (estado y riesgos). Diferencias principales: ya existe la web con pedidos para recoger por franja y envío; el pedido web lo valida y crea el servidor (`crear_pedido_web`), con checkout y casillas legales; el pago real todavía NO está integrado (modo simulado, prohibido vender así).
+
 PROMPT LOVABLE — CONFIGURADOR DE PEDIDO MVP
 
 Yo Llevo la Tarta
@@ -203,6 +205,7 @@ El precio total siempre visible en la parte inferior como barra fija
 Diseñado mobile-first: funciona en el móvil del cliente y en tablet fija de tienda
 
 Sin login, sin registro, sin datos personales para el MVP
+*[Actualizado 13/10/2026: sigue sin login ni registro, pero la web pide los datos del cliente necesarios para recogida y envío.]*
 
 DATOS DE PRUEBA
 
@@ -245,8 +248,10 @@ Logo "Yo Llevo la Tarta" en cabecera, pequeño pero presente
 LO QUE NO ES ESTE MVP
 
 No procesa pagos (el pago es en mostrador con TPV físico)
+*[Actualizado 13/10/2026: la web ya tiene checkout con importe calculado por el servidor, pero el pago real todavía no está integrado (modo simulado). Tablet y QR tampoco tienen pago integrado.]*
 
 No tiene pedidos para recoger con hora (eso va en el desarrollo real)
+*[Obsoleto 13/10/2026: la web ya tiene pedidos para recoger por franja y envío.]*
 
 No tiene login ni cuenta de cliente
 
@@ -255,6 +260,7 @@ No guarda historial de pedidos
 No tiene vídeos reales (placeholders de color)
 
 No se comunica con el dashboard de obrador (eso va en el desarrollo real)
+*[Obsoleto: todos los módulos comparten la misma base; el Obrador ya lee las ventas.]*
 
 El pedido generado sí tiene que llegar al KDS — esa conexión es la única imprescindible para que el MVP sea funcional de verdad.
 
