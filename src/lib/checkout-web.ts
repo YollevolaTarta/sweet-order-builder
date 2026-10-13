@@ -33,7 +33,9 @@ export type ResultadoPedido = Presupuesto & {
   franja_recogida: string | null;
 };
 
-export type RespuestaError = { ok: false; error: string; [k: string]: unknown };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Raw = any;
+export type RespuestaError = { ok: false; error: string } & Raw;
 
 export type DatosPedidoWeb = {
   store_id: string;
@@ -50,7 +52,7 @@ export type DatosPedidoWeb = {
 
 export function itemsParaServidor(cart: CartItem[]): Record<string, unknown>[] {
   return cart.map((i) => {
-    const base: Record<string, unknown> =
+    const base: Raw =
       i.tipo === "pack"
         ? { tipo: "pack", formato: i.formato, pack_id: i.pack?.pack_id }
         : i.tipo === "receta"
@@ -66,7 +68,7 @@ export function itemsParaServidor(cart: CartItem[]): Record<string, unknown>[] {
 
 const num = (v: unknown) => Number(v ?? 0);
 
-function normalizar(d: Record<string, unknown>): Presupuesto {
+function normalizar(d: Raw): Presupuesto {
   return {
     subtotal: num(d.subtotal),
     envio: num(d.envio),
@@ -83,7 +85,7 @@ function normalizar(d: Record<string, unknown>): Presupuesto {
 export async function cargarConfigWeb(): Promise<ConfigWeb> {
   const { data, error } = await supabaseYLLT.rpc("config_web_publica");
   if (error || !data) throw error ?? new Error("sin config");
-  const d = data as Record<string, unknown>;
+  const d = data as Raw;
   return {
     condiciones_version: String(d.condiciones_version ?? ""),
     texto_casilla_condiciones: String(d.texto_casilla_condiciones ?? ""),
@@ -98,13 +100,13 @@ export async function cargarConfigWeb(): Promise<ConfigWeb> {
 
 type Resp<T> = ({ ok: true } & T) | RespuestaError;
 
-async function llamar(datos: DatosPedidoWeb, confirmar: boolean): Promise<Record<string, unknown>> {
+async function llamar(datos: DatosPedidoWeb, confirmar: boolean): Promise<Raw> {
   const { data, error } = await supabaseYLLT.rpc("crear_pedido_web", {
     p_datos: datos,
     p_confirmar: confirmar,
   });
   if (error || !data) return { ok: false, error: "red" };
-  return data as Record<string, unknown>;
+  return data as Raw;
 }
 
 export async function pedirPresupuesto(datos: DatosPedidoWeb): Promise<Resp<Presupuesto>> {
