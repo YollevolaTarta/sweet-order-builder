@@ -292,87 +292,83 @@ function WebConfigura() {
   };
 
   const confirm = async () => {
-    if (cart.length === 0 || !clienteOk || !entregaOk) return;
+    if (!puedePagar || !presupuesto || !config) return;
     setSending(true);
     setError(null);
-    const precio = Number(cestaTotal.toFixed(2));
-    // PROVISIONAL: marcamos el pedido como pagado con metodo_pago 'prueba'
-    // hasta integrar la pasarela de pago real.
-    const { data, error: err } = await supabaseYLLT
-      .from("pedidos")
-      .insert({
-        store_id: STORE_ID,
-        canal: "web",
-        tipo_pedido: entrega,
-        franja_recogida: entrega === "recoger" ? franja : null,
-        estado: "pendiente",
-        pago: "pagado",
-        metodo_pago: "prueba",
-        total: precio,
-      })
-      .select("id, numero_pedido, serie")
-      .single();
-
-    if (err || !data) {
-      setSending(false);
-      setError("No hemos podido enviar el pedido. Inténtalo otra vez.");
-      return;
-    }
-
-    const lineas = lineasDeCesta(cart, data.id);
-
-    const { error: lineErr } = await supabaseYLLT.from("lineas_pedido").insert(lineas);
-    if (lineErr) {
-      setSending(false);
-      setError(
-        /shake/i.test(lineErr.message)
-          ? "El cake shake solo se puede recoger en tienda. Cambia la entrega a recogida."
-          : "No hemos podido enviar el pedido. Inténtalo otra vez.",
-      );
-      return;
-    }
-
-    // pedido_clientes solo permite insertar, nunca leer: sin .select().
-    const { error: cliErr } = await supabaseYLLT.from("pedido_clientes").insert({
-      pedido_id: data.id,
-      nombre: nombre.trim(),
-      apellidos: apellidos.trim(),
-      email: email.trim(),
-      telefono: telefono.trim(),
-      ...(entrega === "envio"
-        ? {
-            direccion: direccion.trim(),
-            codigo_postal: codigoPostal.trim(),
-            ciudad: ciudad.trim(),
-          }
+    const datos: DatosPedidoWeb = {
+      ...datosBase,
+      acepta_condiciones: true,
+      condiciones_version: config.condiciones_version,
+      acepta_comercial: aceptaComercial,
+      total_esperado: presupuesto.total,
+      ...(entrega === "envio" && presupuesto.fecha_envio
+        ? { fecha_envio_esperada: presupuesto.fecha_envio }
         : {}),
-    });
+    };
+    const r = await confirmarPedido(datos);
     setSending(false);
-    if (cliErr) {
-      setError("No hemos podido guardar tus datos. Inténtalo otra vez.");
+    if (r.ok) {
+      clearCart();
+      setDone({
+        numero: r.numero,
+        entrega,
+        franja: r.franja_recogida ?? franja,
+        fecha_envio: r.fecha_envio,
+      });
       return;
     }
-    clearCart();
-    setDone({ label: `${data.serie}-${String(data.numero_pedido ?? 0).padStart(2, "0")}` });
+    setError(mensajeError(r));
+    switch (r.error) {
+      case "fecha_envio_actualizada":
+        setPresupuesto((p) =>
+          p
+            ? {
+                ...p,
+                fecha_envio: (r.fecha_envio as string) ?? p.fecha_envio,
+                plazo_cancelacion: (r.plazo_cancelacion as string) ?? p.plazo_cancelacion,
+                puede_cancelar: r.puede_cancelar !== undefined ? !!r.puede_cancelar : p.puede_cancelar,
+              }
+            : p,
+        );
+        break;
+      case "precio_actualizado":
+        setQuoteKey((k) => k + 1);
+        break;
+      case "franja_completa":
+      case "franja_no_valida":
+        setFranja(null);
+        setFranjasKey((k) => k + 1);
+        break;
+      case "condiciones_version_no_vigente":
+        setAceptaCondiciones(false);
+        setConfigKey((k) => k + 1);
+        break;
+    }
   };
 
   if (done) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="text-lg font-bold text-muted-foreground">Tu pedido es el</p>
-        <div className="flex items-center gap-4">
-          <img src="/brand/yllt-sello.png" alt="" aria-hidden="true" className="h-14 w-14 object-contain" />
-          <p className="animate-pop font-display text-7xl font-bold text-yllt-naranja">{done.label}</p>
-        </div>
-        {entrega === "recoger" && franja ? (
-          <p className="max-w-xs text-lg font-bold">
-            Recógelo el {diaLabel(franja)} a las {horaLabel(franja)} en {STORE_NAME} 🍰
-          </p>
+        {done.numero ? (
+          <>
+            <p className="text-lg font-bold text-muted-foreground">Tu pedido es el</p>
+            <div className="flex items-center gap-4">
+              <img src="/brand/yllt-sello.png" alt="" aria-hidden="true" className="h-14 w-14 object-contain" />
+              <p className="animate-pop font-display text-7xl font-bold text-yllt-naranja">{done.numero}</p>
+            </div>
+          </>
         ) : (
-          <p className="max-w-xs text-lg font-bold">
-            Tu pedido saldrá el {envioLabel(fechaEnvio())} 🚚
-          </p>
+          <p className="text-2xl font-black">Pedido recibido, pendiente de pago</p>
         )}
+        {done.entrega === "recoger" && done.franja ? (
+          <p className="max-w-xs text-lg font-bold">
+            Recógelo el {diaLabel(done.franja)} a las {horaLabel(done.franja)} en {STORE_NAME} 🍰
+          </p>
+        ) : done.fecha_envio ? (
+          <p className="max-w-xs text-lg font-bold">
+            Tu pedido saldrá el {fechaEnvioLabel(done.fecha_envio)} 🚚
+          </p>
+        ) : null}
         <button
           onClick={() => {
             order.reset();
@@ -553,6 +549,11 @@ function WebConfigura() {
 
         {step === "checkout" && (
           <>
+            {presupuesto?.pago_simulado && (
+              <p className="mb-4 rounded-xl bg-warn-soft px-4 py-3 text-center text-sm font-black uppercase tracking-wide text-foreground">
+                MODO PRUEBAS — no se cobra
+              </p>
+            )}
             <h1 className="mb-4 text-3xl font-black leading-tight">¿Cómo lo recibes?</h1>
             <div className="mb-6 grid grid-cols-2 gap-3">
               {(
