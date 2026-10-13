@@ -201,5 +201,5 @@ export function plazoLabel(iso: string): string {
     hour12: false,
     timeZone: "Europe/Madrid",
   });
-  return `${fecha} a las ${hora}`;
+  return `${fecha.replace(",", "")} a las ${hora}`;
 }
