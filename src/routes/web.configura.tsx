@@ -1,5 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  cargarConfigWeb,
+  confirmarPedido,
+  fechaEnvioLabel,
+  itemsParaServidor,
+  mensajeError,
+  pedirPresupuesto,
+  plazoLabel,
+  type ConfigWeb,
+  type DatosPedidoWeb,
+  type Presupuesto,
+} from "@/lib/checkout-web";
 import { STORE_ID, euro } from "@/lib/menu";
 import { useIngredientes } from "@/lib/ingredientes";
 import {
@@ -18,7 +30,6 @@ import {
   cartTieneShake,
   cartTotal,
   cartUnidades,
-  lineasDeCesta,
   itemDePack,
   conLiquido,
   liquidoLabel,
@@ -63,31 +74,23 @@ const diaLabel = (iso: string) =>
 const horaLabel = (iso: string) =>
   new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
-// Envíos: salen miércoles y jueves a las 16:00 (hora de Madrid).
-// Jueves 16:01 → miércoles 16:00: sale el miércoles. Miércoles 16:01 → jueves 16:00: sale el jueves.
-function fechaEnvio(): Date {
-  const ahora = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Europe/Madrid" }),
+// "Condiciones de compra" → /condiciones y "alérgenos" → /alergenos dentro del texto de la BD.
+function textoConEnlaces(texto: string) {
+  const partes = texto.split(/(Condiciones de compra|alérgenos)/);
+  return partes.map((p, i) =>
+    p === "Condiciones de compra" ? (
+      <a key={i} href="/condiciones" target="_blank" rel="noopener" className="underline">
+        {p}
+      </a>
+    ) : p === "alérgenos" ? (
+      <a key={i} href="/alergenos" target="_blank" rel="noopener" className="underline">
+        {p}
+      </a>
+    ) : (
+      p
+    ),
   );
-  const dow = ahora.getDay(); // 0 dom … 3 mié … 4 jue
-  const pasoCorte = ahora.getHours() > 16 || (ahora.getHours() === 16 && ahora.getMinutes() > 0);
-  let objetivo: 3 | 4;
-  if (dow === 3) objetivo = pasoCorte ? 4 : 3;
-  else if (dow === 4) objetivo = pasoCorte ? 3 : 4;
-  else objetivo = 3;
-  const delta = (objetivo - dow + 7) % 7; // 0 = sale hoy (antes del corte de las 16:00)
-  const salida = new Date(ahora);
-  salida.setDate(ahora.getDate() + delta);
-  return salida;
 }
-
-const envioLabel = (d: Date) =>
-  d.toLocaleDateString("es-ES", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "Europe/Madrid",
-  });
 
 function WebConfigura() {
   const navigate = useNavigate();
@@ -301,6 +304,16 @@ function WebConfigura() {
     entrega === "recoger"
       ? !!franja
       : direccion.trim().length > 3 && /^[0-9]{5}$/.test(codigoPostal.trim()) && ciudad.trim().length > 1;
+  const puedePagar =
+    !sending &&
+    cart.length > 0 &&
+    !!config &&
+    aceptaCondiciones &&
+    clienteOk &&
+    entregaOk &&
+    !!presupuesto &&
+    !presupuestoError &&
+    !cargandoPresupuesto;
 
   const canContinue = (() => {
     switch (step) {
