@@ -616,14 +616,16 @@ function WebConfigura() {
               </section>
             ) : (
               <section className="mb-6 grid gap-3">
-                <div className="card-soft border-2 border-primary bg-accent p-4">
-                  <p className="text-lg font-black leading-snug">
-                    📦 Tu pedido saldrá el {envioLabel(fechaEnvio())}
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-muted-foreground">
-                    Enviamos los miércoles y los jueves. Transporte en frío en 24h.
-                  </p>
-                </div>
+                {fechaEnvioActual && (
+                  <div className="card-soft border-2 border-primary bg-accent p-4">
+                    <p className="text-lg font-black leading-snug">
+                      📦 Tu pedido saldrá el {fechaEnvioLabel(fechaEnvioActual)}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-muted-foreground">
+                      Enviamos los miércoles y los jueves. Transporte en frío en 24h.
+                    </p>
+                  </div>
+                )}
                 <Field label="Dirección" value={direccion} onChange={setDireccion} />
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Código postal" value={codigoPostal} onChange={setCodigoPostal} />
@@ -641,6 +643,75 @@ function WebConfigura() {
               <Field label="Email" type="email" value={email} onChange={setEmail} />
               <Field label="Teléfono" type="tel" value={telefono} onChange={setTelefono} />
             </div>
+            <p className="mt-2 text-[11px] font-normal text-muted-foreground">
+              YO LLEVO LA TARTA, S.L.U. trata tus datos para gestionar tu pedido. Más información y tus derechos en la{" "}
+              <a href="/privacidad" className="underline">Política de privacidad</a>.
+            </p>
+
+            <div className="card-soft mt-6 space-y-2 p-4">
+              <div className="flex justify-between text-base font-bold">
+                <span>Productos</span>
+                <span>{presupuesto ? euro(presupuesto.subtotal) : "—"}</span>
+              </div>
+              {entrega === "envio" && (
+                <div className="flex justify-between text-base font-bold">
+                  <span>Envío</span>
+                  <span>{presupuesto ? euro(presupuesto.envio) : "—"}</span>
+                </div>
+              )}
+              <hr className="border-border" />
+              <div className="flex justify-between text-lg font-black">
+                <span>Total (IVA incluido)</span>
+                <span>{presupuesto ? euro(presupuesto.total) : "—"}</span>
+              </div>
+              {cargandoPresupuesto && (
+                <p className="text-xs font-bold text-muted-foreground">Calculando…</p>
+              )}
+            </div>
+            {presupuestoError && (
+              <p className="mt-3 text-sm font-bold text-destructive">{presupuestoError}</p>
+            )}
+
+            {config ? (
+              <div className="mt-5 space-y-3">
+                <label className="flex items-start gap-3 text-sm font-bold">
+                  <input
+                    type="checkbox"
+                    checked={aceptaCondiciones}
+                    onChange={(e) => setAceptaCondiciones(e.target.checked)}
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-brand-strong)]"
+                  />
+                  <span>{textoConEnlaces(config.texto_casilla_condiciones)}</span>
+                </label>
+                <label className="flex items-start gap-3 text-sm font-bold">
+                  <input
+                    type="checkbox"
+                    checked={aceptaComercial}
+                    onChange={(e) => setAceptaComercial(e.target.checked)}
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-brand-strong)]"
+                  />
+                  <span>{config.texto_casilla_comercial}</span>
+                </label>
+              </div>
+            ) : (
+              <p className="mt-5 text-sm font-bold text-muted-foreground">
+                {configError ? (
+                  <button type="button" className="underline" onClick={() => setConfigKey((k) => k + 1)}>
+                    No hemos podido cargar las condiciones. Reintentar
+                  </button>
+                ) : (
+                  "Cargando condiciones…"
+                )}
+              </p>
+            )}
+
+            {presupuesto && (entrega === "envio" || franja) && (
+              <p className="mt-4 text-xs font-bold text-muted-foreground">
+                {presupuesto.puede_cancelar && presupuesto.plazo_cancelacion
+                  ? `Producto fresco y hecho a tu gusto: no tiene derecho de desistimiento. Puedes cancelarlo gratis hasta el ${plazoLabel(presupuesto.plazo_cancelacion)}.`
+                  : "Producto fresco y hecho a tu gusto: no tiene derecho de desistimiento y, una vez pagado, este pedido ya no se puede cancelar."}
+              </p>
+            )}
             {error && <p className="mt-3 text-sm font-bold text-destructive">{error}</p>}
           </>
         )}
@@ -656,7 +727,9 @@ function WebConfigura() {
           </button>
           <div className="flex-1">
             <p className="text-[11px] font-bold uppercase text-muted-foreground">Total</p>
-            <p className="text-2xl font-black leading-none text-foreground">{euro(footerTotal)}</p>
+            <p className="text-2xl font-black leading-none text-foreground">
+              {step === "checkout" ? (presupuesto ? euro(presupuesto.total) : "—") : euro(footerTotal)}
+            </p>
           </div>
           {step === "cesta" ? null : step !== "checkout" ? (
             <button
@@ -668,11 +741,11 @@ function WebConfigura() {
             </button>
           ) : (
             <button
-              disabled={sending || !clienteOk || !entregaOk}
+              disabled={!puedePagar}
               onClick={confirm}
               className="rounded-full bg-yllt-naranja px-7 py-4 text-lg font-extrabold text-yllt-naranja-foreground shadow-card transition disabled:opacity-50"
             >
-              {sending ? "Enviando…" : "CONFIRMAR"}
+              {sending ? "Enviando…" : "Pagar ahora"}
             </button>
           )}
         </div>
