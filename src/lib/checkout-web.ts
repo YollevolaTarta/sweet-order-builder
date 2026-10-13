@@ -183,7 +183,7 @@ export function fechaEnvioLabel(iso: string): string {
     day: "numeric",
     month: "long",
     timeZone: "UTC",
-  });
+  }).replace(",", "");
 }
 
 /** Timestamp ISO → "jueves 15 de octubre a las 16:00" en hora de Madrid. */
