@@ -11,7 +11,7 @@
 
 # Base de datos YLLT
 
-Fuentes maestras: `yllt-database/docs/contratos_base_compartida.md` (contratos) y `yllt-database/docs/estado_sistema_y_riesgos.md` (estado y riesgos). Si hay contradicción, mandan esos documentos.
+Antes de realizar cambios estructurales o funcionales relevantes, consulta `yllt-database/docs/constitucion_tecnica.md`. Sus reglas tienen prioridad sobre decisiones técnicas locales. Después consulta el estado actual del sistema (`yllt-database/docs/estado_sistema_y_riesgos.md`) y los contratos compartidos correspondientes (`yllt-database/docs/contratos_base_compartida.md`). Si hay contradicción, manda la Constitución Técnica y, después, esos documentos.
 
 - NUNCA modificar la base compartida (tablas, datos, vistas, RPC, triggers, permisos/RLS, Edge Functions, migraciones) directamente: describir el cambio en chat para el Database Coordinator. — Existe un coordinador que revisa todo cambio sobre la base compartida.
 - El configurador no modifica pedidos existentes. — Permisos cerrados deliberadamente.
