@@ -24,6 +24,9 @@ export type Presupuesto = {
   plazo_cancelacion: string | null;
   puede_cancelar: boolean;
   pago_simulado: boolean;
+  campana?: string;
+  packs?: number;
+  disponibles?: number;
 };
 
 export type ResultadoPedido = Presupuesto & {
@@ -79,6 +82,9 @@ function normalizar(d: Raw): Presupuesto {
     plazo_cancelacion: (d.plazo_cancelacion as string) ?? null,
     puede_cancelar: !!d.puede_cancelar,
     pago_simulado: !!d.pago_simulado,
+    ...(d.campana !== undefined ? { campana: String(d.campana) } : {}),
+    ...(d.packs !== undefined ? { packs: num(d.packs) } : {}),
+    ...(d.disponibles !== undefined ? { disponibles: num(d.disponibles) } : {}),
   };
 }
 
@@ -167,6 +173,17 @@ export function mensajeError(r: RespuestaError): string {
       return "Para continuar, acepta las Condiciones de compra.";
     case "condiciones_version_no_vigente":
       return "Las condiciones se han actualizado.";
+    case "campana_agotada":
+      return num(r.disponibles) > 0 ? `Solo quedan ${num(r.disponibles)} packs.` : "Se han agotado los packs.";
+    case "campana_cerrada":
+      return "La venta de la campaña ha terminado.";
+    case "campana_no_disponible":
+      return "Campaña no disponible.";
+    case "cantidad_no_valida":
+      return "Elige cuántos packs quieres.";
+    case "campana_solo_envio":
+    case "campana_no_combinable":
+      return GENERICO;
     default:
       return GENERICO;
   }
@@ -202,4 +219,41 @@ export function plazoLabel(iso: string): string {
     timeZone: "Europe/Madrid",
   });
   return `${fecha.replace(",", "")} a las ${hora}`;
+}
+
+export type CampanaTarta = {
+  orden: number; receta_id: number; nombre: string; crema: string; topping: string;
+  descripcion: string;
+  alergenos: { codigo: string; sigla: string; nombre: string }[];
+  alergenos_completos: boolean;
+};
+
+export type Campana = {
+  codigo: string; nombre: string;
+  precio_pack: number; envio: number; packs_por_envio: number; total_un_pack: number;
+  fecha_envio: string; plazo_cancelacion: string; venta_hasta: string;
+  venta_abierta: boolean; disponibles: number; agotado: boolean; se_puede_comprar: boolean;
+  alergenos_completos: boolean; alergenos_pendientes: string[];
+  tartas: CampanaTarta[];
+};
+
+export async function cargarCampana(codigo: string): Promise<Campana | { ok: false; error: string }> {
+  try {
+    const { data, error } = await supabaseYLLT.rpc("campana_publica", { p_codigo: codigo });
+    if (error || !data) return { ok: false, error: "red" };
+    if (data.ok === false) return data;
+    return {
+      ...data,
+      precio_pack: Number(data.precio_pack),
+      envio: Number(data.envio),
+      packs_por_envio: Number(data.packs_por_envio),
+      total_un_pack: Number(data.total_un_pack),
+      disponibles: Number(data.disponibles),
+      tartas: (data.tartas ?? []).map((t: CampanaTarta) => ({
+        ...t, orden: Number(t.orden), receta_id: Number(t.receta_id),
+      })),
+    };
+  } catch {
+    return { ok: false, error: "red" };
+  }
 }

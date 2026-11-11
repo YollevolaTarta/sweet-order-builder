@@ -31,3 +31,5 @@ Antes de realizar cambios estructurales o funcionales relevantes, consulta `yllt
 ## Tablet y QR
 
 - Sin cambios hasta el bloque de pago presencial: siguen insertando el pedido (canal `tablet`/`qr`) y sus líneas solo al crearlo, con `pagado`/`prueba`. No modificarlos.
+
+- Keep campaign purchases isolated in their own web route and reuse the existing checkout RPC helpers without modifying the normal cart flow; this preserves compatibility with the shared checkout contract.
