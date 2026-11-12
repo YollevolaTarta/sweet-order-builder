@@ -35,7 +35,7 @@ function CondicionesCampana() {
   return (
     <section className="space-y-3 text-sm leading-relaxed">
       <h2 className="text-xl font-bold">Condiciones de la campaña de diciembre</h2>
-      <p>Estas condiciones se aplican al Pack de Diciembre y forman parte de nuestras Condiciones de compra. Donde digan algo distinto, mandan estas.</p>
+      <p>Estas condiciones se aplican al Pack de Diciembre y forman parte de nuestras <a href="/condiciones" target="_blank" rel="noopener" className="underline">Condiciones de compra</a>. Donde digan algo distinto, mandan estas.</p>
       <ul className="list-disc space-y-3 pl-5">
         <li><strong>Qué compras:</strong> un pack cerrado de 6 tartas, una de cada receta indicada. No se puede cambiar ni sustituir ninguna. 30 € por pack, IVA incluido.</li>
         <li><strong>Cómo llega:</strong> en frío, como kit para montar en casa: ingredientes por separado y etiquetados, con lo necesario para montarlas y las instrucciones.</li>
@@ -48,6 +48,7 @@ function CondicionesCampana() {
         <li><strong>Si no se puede entregar</strong> porque no hay nadie o la dirección o el teléfono son incorrectos, no hay reembolso ni reenvío.</li>
         <li><strong>Si llega dañado, incompleto o en mal estado,</strong> avísanos en las 24 horas siguientes a la entrega, en rrss.yollevolatarta@gmail.com, con el número de pedido y fotos del producto y del embalaje. Si la causa es nuestra o del transportista, te lo reponemos si es posible o te devolvemos el importe de lo afectado.</li>
       </ul>
+      <p><a href="/condiciones#campanas" target="_blank" rel="noopener" className="underline">Ver condiciones de la campaña</a></p>
     </section>
   );
 }
@@ -253,7 +254,7 @@ function Diciembre() {
               <input type={f.type} autoComplete={f.autoComplete} value={cliente[f.key]} required inputMode={f.key === "codigo_postal" ? "numeric" : undefined} onChange={(e) => setCliente((c) => ({ ...c, [f.key]: e.target.value }))} className="w-full rounded-2xl border-2 border-border bg-card px-4 py-3 text-base font-bold outline-none focus:border-primary" />
             </label>)}
           </fieldset>
-          <p className="text-[11px] text-muted-foreground">YO LLEVO LA TARTA, S.L.U. trata tus datos para gestionar tu pedido. Más información y tus derechos en la Política de privacidad.</p>
+          <p className="text-[11px] text-muted-foreground">YO LLEVO LA TARTA, S.L.U. trata tus datos para gestionar tu pedido. Más información y tus derechos en la <a href="/privacidad" className="underline">Política de privacidad</a>.</p>
           <div aria-live="polite" className="space-y-3 border-y border-border py-5">
             <div className="flex justify-between gap-4 font-bold"><span>Productos</span><span>{presupuesto && quoteActual ? euro(presupuesto.subtotal) : "—"}</span></div>
             <div className="flex justify-between gap-4 font-bold"><span>Envío</span><span>{presupuesto && quoteActual ? euro(presupuesto.envio) : "—"}</span></div>
