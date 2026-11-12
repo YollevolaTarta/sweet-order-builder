@@ -33,3 +33,7 @@ Antes de realizar cambios estructurales o funcionales relevantes, consulta `yllt
 - Sin cambios hasta el bloque de pago presencial: siguen insertando el pedido (canal `tablet`/`qr`) y sus líneas solo al crearlo, con `pagado`/`prueba`. No modificarlos.
 
 - Keep campaign purchases isolated in their own web route and reuse the existing checkout RPC helpers without modifying the normal cart flow; this preserves compatibility with the shared checkout contract.
+
+## Cookies y Meta Pixel (DEC-010)
+
+- El banner de cookies y el Meta Pixel (`consent.ts`, `meta-pixel.ts`, `cookie-consent.tsx`) los aprobó Dirección (DEC-010). No modificarlos ni sustituirlos por el procedimiento de cookies de Lovable sin aprobación de Dirección.

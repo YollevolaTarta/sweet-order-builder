@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/site-footer";
+import { CookieConsent } from "@/components/cookie-consent";
 import { lineaVersionLegal } from "@/lib/legal";
 
 export function LegalPage({ title, children }: { title: string; children: ReactNode }) {
@@ -19,6 +20,7 @@ export function LegalPage({ title, children }: { title: string; children: ReactN
         </div>
       </main>
       <SiteFooter />
+      <CookieConsent />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   type Campana, type ConfigWeb, type DatosPedidoWeb, type Presupuesto, type ResultadoPedido,
 } from "@/lib/checkout-web";
 import { STORE_ID, euro } from "@/lib/menu";
+import { track } from "@/lib/meta-pixel";
 
 export const Route = createFileRoute("/web/diciembre")({
   head: () => ({ meta: [
@@ -104,6 +105,13 @@ function Diciembre() {
     acepta_condiciones: false, acepta_comercial: false,
   }), [cantidad, cliente]);
   const datosRef = useRef(datos);
+  // Meta Pixel (T-012, DEC-010): solo eventos aprobados y sin datos personales. track() no hace nada sin consentimiento.
+  const viewContentEnviado = useRef(false);
+  useEffect(() => {
+    if (!campana?.se_puede_comprar || viewContentEnviado.current) return;
+    viewContentEnviado.current = true;
+    track("ViewContent", { content_ids: [CODIGO], content_type: "product", content_name: campana.nombre, value: campana.precio_pack, currency: "EUR" });
+  }, [campana]);
   datosRef.current = datos;
   const firma = `${cantidad}:${cp}:${quoteKey}`;
   const disponibilidad = campana?.disponibles ?? 0;
@@ -157,7 +165,7 @@ function Diciembre() {
       fecha_envio_esperada: presupuesto.fecha_envio,
     });
     setSending(false);
-    if (r.ok) { setDone(r); return; }
+    if (r.ok) { registrarPurchase(r); setDone(r); return; }
     setError(mensajeError(r));
     if (r.error === "precio_actualizado" || r.error === "fecha_envio_actualizada") {
       setPresupuesto((p) => p ? {
@@ -235,7 +243,7 @@ function Diciembre() {
       </section>
       <div className="space-y-5 py-7">
         <CondicionesCampana />
-        {comprable && !compra && <Button className="h-auto w-full rounded-full bg-yllt-naranja px-7 py-4 text-lg font-extrabold text-yllt-naranja-foreground hover:bg-yllt-naranja/90" onClick={() => { setCompra(true); setAceptaCondiciones(false); setAceptaComercial(false); requestAnimationFrame(() => document.getElementById("compra-diciembre")?.scrollIntoView({ block: "start" })); }}>Comprar pack</Button>}
+        {comprable && !compra && <Button className="h-auto w-full rounded-full bg-yllt-naranja px-7 py-4 text-lg font-extrabold text-yllt-naranja-foreground hover:bg-yllt-naranja/90" onClick={() => { track("InitiateCheckout", { content_ids: [CODIGO], content_type: "product", num_items: cantidad, currency: "EUR" }); setCompra(true); setAceptaCondiciones(false); setAceptaComercial(false); requestAnimationFrame(() => document.getElementById("compra-diciembre")?.scrollIntoView({ block: "start" })); }}>Comprar pack</Button>}
       </div>
       {comprable && compra && <section id="compra-diciembre" className="scroll-mt-5 border-t border-border pt-7">
         {config.pago_web_modo === "simulado" && <p className="mb-5 rounded-lg bg-warn-soft px-4 py-3 text-center font-black">MODO PRUEBAS — no se cobra</p>}
@@ -278,4 +286,18 @@ function Diciembre() {
       </section>}
     </main>
   );
+}
+
+/** Purchase solo con pago real confirmado por el servidor; nunca con pago simulado. Una vez por pedido.
+ *  El pedido_id solo se usa en este navegador para no repetir el evento: no se envía a Meta. */
+function registrarPurchase(r: ResultadoPedido) {
+  if (r.pago_simulado !== false || r.pago !== "pagado") return;
+  const marca = `yllt_purchase_${r.pedido_id}`;
+  try {
+    if (window.sessionStorage.getItem(marca)) return;
+    window.sessionStorage.setItem(marca, "1");
+  } catch {
+    // sin sessionStorage: se envía igualmente una vez en esta confirmación
+  }
+  track("Purchase", { value: r.total, currency: "EUR" });
 }

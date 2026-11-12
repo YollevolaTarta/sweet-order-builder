@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { WebOrderProvider } from "@/lib/web-order";
 import { SiteFooter } from "@/components/site-footer";
+import { CookieConsent } from "@/components/cookie-consent";
 
 export const Route = createFileRoute("/web")({
   component: WebLayout,
@@ -17,6 +18,7 @@ function WebLayout() {
         </header>
         <Outlet />
         <SiteFooter />
+        <CookieConsent />
       </div>
     </WebOrderProvider>
   );

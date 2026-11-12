@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { openCookieSettings } from "@/lib/consent";
 
 export function SiteFooter() {
   const cls = "underline-offset-4 hover:underline";
@@ -10,8 +11,9 @@ export function SiteFooter() {
         <Link to="/privacidad" className={cls}>Privacidad</Link>
         <Link to="/cookies" className={cls}>Cookies</Link>
         <Link to="/alergenos" className={cls}>Alérgenos</Link>
-        {/* Hueco reservado para «Configurar cookies»: llegará con la tarea del banner. */}
-        <span data-slot="configurar-cookies" hidden />
+        <button type="button" data-slot="configurar-cookies" className={cls} onClick={openCookieSettings}>
+          Configurar cookies
+        </button>
       </nav>
     </footer>
   );
