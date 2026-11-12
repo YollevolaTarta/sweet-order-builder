@@ -10,6 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AlergenosRouteImport } from './routes/alergenos'
+import { Route as AvisoLegalRouteImport } from './routes/aviso-legal'
+import { Route as CondicionesRouteImport } from './routes/condiciones'
+import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as PrivacidadRouteImport } from './routes/privacidad'
 import { Route as WebRouteImport } from './routes/web'
 import { Route as WebIndexRouteImport } from './routes/web.index'
 import { Route as WebConfiguraRouteImport } from './routes/web.configura'
@@ -19,6 +24,31 @@ import { Route as WebRecetasRouteImport } from './routes/web.recetas'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlergenosRoute = AlergenosRouteImport.update({
+  id: '/alergenos',
+  path: '/alergenos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AvisoLegalRoute = AvisoLegalRouteImport.update({
+  id: '/aviso-legal',
+  path: '/aviso-legal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CondicionesRoute = CondicionesRouteImport.update({
+  id: '/condiciones',
+  path: '/condiciones',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadRoute = PrivacidadRouteImport.update({
+  id: '/privacidad',
+  path: '/privacidad',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WebRoute = WebRouteImport.update({
@@ -49,6 +79,11 @@ const WebRecetasRoute = WebRecetasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/alergenos': typeof AlergenosRoute
+  '/aviso-legal': typeof AvisoLegalRoute
+  '/condiciones': typeof CondicionesRoute
+  '/cookies': typeof CookiesRoute
+  '/privacidad': typeof PrivacidadRoute
   '/web': typeof WebRouteWithChildren
   '/web/configura': typeof WebConfiguraRoute
   '/web/diciembre': typeof WebDiciembreRoute
@@ -57,6 +92,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/alergenos': typeof AlergenosRoute
+  '/aviso-legal': typeof AvisoLegalRoute
+  '/condiciones': typeof CondicionesRoute
+  '/cookies': typeof CookiesRoute
+  '/privacidad': typeof PrivacidadRoute
   '/web/configura': typeof WebConfiguraRoute
   '/web/diciembre': typeof WebDiciembreRoute
   '/web/recetas': typeof WebRecetasRoute
@@ -65,6 +105,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/alergenos': typeof AlergenosRoute
+  '/aviso-legal': typeof AvisoLegalRoute
+  '/condiciones': typeof CondicionesRoute
+  '/cookies': typeof CookiesRoute
+  '/privacidad': typeof PrivacidadRoute
   '/web': typeof WebRouteWithChildren
   '/web/configura': typeof WebConfiguraRoute
   '/web/diciembre': typeof WebDiciembreRoute
@@ -75,16 +120,36 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/alergenos'
+    | '/aviso-legal'
+    | '/condiciones'
+    | '/cookies'
+    | '/privacidad'
     | '/web'
     | '/web/configura'
     | '/web/diciembre'
     | '/web/recetas'
     | '/web/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/web/configura' | '/web/diciembre' | '/web/recetas' | '/web'
+  to:
+    | '/'
+    | '/alergenos'
+    | '/aviso-legal'
+    | '/condiciones'
+    | '/cookies'
+    | '/privacidad'
+    | '/web/configura'
+    | '/web/diciembre'
+    | '/web/recetas'
+    | '/web'
   id:
     | '__root__'
     | '/'
+    | '/alergenos'
+    | '/aviso-legal'
+    | '/condiciones'
+    | '/cookies'
+    | '/privacidad'
     | '/web'
     | '/web/configura'
     | '/web/diciembre'
@@ -94,6 +159,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AlergenosRoute: typeof AlergenosRoute
+  AvisoLegalRoute: typeof AvisoLegalRoute
+  CondicionesRoute: typeof CondicionesRoute
+  CookiesRoute: typeof CookiesRoute
+  PrivacidadRoute: typeof PrivacidadRoute
   WebRoute: typeof WebRouteWithChildren
 }
 
@@ -104,6 +174,41 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/alergenos': {
+      id: '/alergenos'
+      path: '/alergenos'
+      fullPath: '/alergenos'
+      preLoaderRoute: typeof AlergenosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aviso-legal': {
+      id: '/aviso-legal'
+      path: '/aviso-legal'
+      fullPath: '/aviso-legal'
+      preLoaderRoute: typeof AvisoLegalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/condiciones': {
+      id: '/condiciones'
+      path: '/condiciones'
+      fullPath: '/condiciones'
+      preLoaderRoute: typeof CondicionesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidad': {
+      id: '/privacidad'
+      path: '/privacidad'
+      fullPath: '/privacidad'
+      preLoaderRoute: typeof PrivacidadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/web': {
@@ -162,6 +267,11 @@ const WebRouteWithChildren = WebRoute._addFileChildren(WebRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AlergenosRoute: AlergenosRoute,
+  AvisoLegalRoute: AvisoLegalRoute,
+  CondicionesRoute: CondicionesRoute,
+  CookiesRoute: CookiesRoute,
+  PrivacidadRoute: PrivacidadRoute,
   WebRoute: WebRouteWithChildren,
 }
 export const routeTree = rootRouteImport
