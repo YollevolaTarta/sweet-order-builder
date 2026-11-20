@@ -19,6 +19,7 @@ import { Route as WebRouteImport } from './routes/web'
 import { Route as WebIndexRouteImport } from './routes/web.index'
 import { Route as WebConfiguraRouteImport } from './routes/web.configura'
 import { Route as WebDiciembreRouteImport } from './routes/web.diciembre'
+import { Route as WebPagoRouteImport } from './routes/web.pago'
 import { Route as WebRecetasRouteImport } from './routes/web.recetas'
 
 const IndexRoute = IndexRouteImport.update({
@@ -71,6 +72,11 @@ const WebDiciembreRoute = WebDiciembreRouteImport.update({
   path: '/diciembre',
   getParentRoute: () => WebRoute,
 } as any)
+const WebPagoRoute = WebPagoRouteImport.update({
+  id: '/pago',
+  path: '/pago',
+  getParentRoute: () => WebRoute,
+} as any)
 const WebRecetasRoute = WebRecetasRouteImport.update({
   id: '/recetas',
   path: '/recetas',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/web': typeof WebRouteWithChildren
   '/web/configura': typeof WebConfiguraRoute
   '/web/diciembre': typeof WebDiciembreRoute
+  '/web/pago': typeof WebPagoRoute
   '/web/recetas': typeof WebRecetasRoute
   '/web/': typeof WebIndexRoute
 }
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/privacidad': typeof PrivacidadRoute
   '/web/configura': typeof WebConfiguraRoute
   '/web/diciembre': typeof WebDiciembreRoute
+  '/web/pago': typeof WebPagoRoute
   '/web/recetas': typeof WebRecetasRoute
   '/web': typeof WebIndexRoute
 }
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/web': typeof WebRouteWithChildren
   '/web/configura': typeof WebConfiguraRoute
   '/web/diciembre': typeof WebDiciembreRoute
+  '/web/pago': typeof WebPagoRoute
   '/web/recetas': typeof WebRecetasRoute
   '/web/': typeof WebIndexRoute
 }
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/web'
     | '/web/configura'
     | '/web/diciembre'
+    | '/web/pago'
     | '/web/recetas'
     | '/web/'
   fileRoutesByTo: FileRoutesByTo
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/privacidad'
     | '/web/configura'
     | '/web/diciembre'
+    | '/web/pago'
     | '/web/recetas'
     | '/web'
   id:
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/web'
     | '/web/configura'
     | '/web/diciembre'
+    | '/web/pago'
     | '/web/recetas'
     | '/web/'
   fileRoutesById: FileRoutesById
@@ -239,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WebDiciembreRouteImport
       parentRoute: typeof WebRoute
     }
+    '/web/pago': {
+      id: '/web/pago'
+      path: '/pago'
+      fullPath: '/web/pago'
+      preLoaderRoute: typeof WebPagoRouteImport
+      parentRoute: typeof WebRoute
+    }
     '/web/recetas': {
       id: '/web/recetas'
       path: '/recetas'
@@ -252,6 +271,7 @@ declare module '@tanstack/react-router' {
 interface WebRouteChildren {
   WebConfiguraRoute: typeof WebConfiguraRoute
   WebDiciembreRoute: typeof WebDiciembreRoute
+  WebPagoRoute: typeof WebPagoRoute
   WebRecetasRoute: typeof WebRecetasRoute
   WebIndexRoute: typeof WebIndexRoute
 }
@@ -259,6 +279,7 @@ interface WebRouteChildren {
 const WebRouteChildren: WebRouteChildren = {
   WebConfiguraRoute: WebConfiguraRoute,
   WebDiciembreRoute: WebDiciembreRoute,
+  WebPagoRoute: WebPagoRoute,
   WebRecetasRoute: WebRecetasRoute,
   WebIndexRoute: WebIndexRoute,
 }

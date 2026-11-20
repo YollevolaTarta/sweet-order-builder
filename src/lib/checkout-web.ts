@@ -257,3 +257,184 @@ export async function cargarCampana(codigo: string): Promise<Campana | { ok: fal
     return { ok: false, error: "red" };
   }
 }
+
+// ---------- Pasarela Redsys (T-014, DEC-011) ----------
+// El navegador nunca envía importes ni decide si un pedido está pagado: solo lleva al cliente a Redsys
+// con los campos que firma el servidor (iniciar_pago_redsys) y luego consulta estado_pago_web.
+
+export type OrigenPago = "configura" | "diciembre";
+export type PagoGuardado = { pedido_id: number; email: string; origen: OrigenPago | null };
+
+const CLAVE_PAGO = "yllt_pago";
+
+/** Guarda en esta pestaña el pedido que se va a pagar (para la página de vuelta /web/pago). */
+export function guardarPago(p: PagoGuardado): void {
+  try {
+    window.sessionStorage.setItem(CLAVE_PAGO, JSON.stringify(p));
+  } catch {
+    // sin sessionStorage: /web/pago pedirá el email
+  }
+}
+
+/** Pedido guardado en esta pestaña, solo si es el de la URL. */
+export function leerPago(pedidoId: number): PagoGuardado | null {
+  try {
+    const raw = window.sessionStorage.getItem(CLAVE_PAGO);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as Partial<PagoGuardado>;
+    if (p.pedido_id !== pedidoId || typeof p.email !== "string" || !p.email) return null;
+    const origen = p.origen === "configura" || p.origen === "diciembre" ? p.origen : null;
+    return { pedido_id: pedidoId, email: p.email, origen };
+  } catch {
+    return null;
+  }
+}
+
+export type InicioPago = {
+  ok: true;
+  url: string;
+  Ds_SignatureVersion: string;
+  Ds_MerchantParameters: string;
+  Ds_Signature: string;
+};
+
+// Solo se envía el formulario a Redsys (pruebas o real).
+const URL_REDSYS = /^https:\/\/sis(-t)?\.redsys\.es(:25443)?\/sis\/realizarPago$/;
+
+/** Pide al servidor los campos firmados para pagar un pedido ya creado. Nunca envía importes. */
+export async function iniciarPagoRedsys(
+  pedido_id: number,
+  email: string,
+): Promise<InicioPago | RespuestaError> {
+  try {
+    const { data, error } = await supabaseYLLT.functions.invoke("iniciar_pago_redsys", {
+      body: { pedido_id, email },
+    });
+    let d: Raw = data;
+    if (error) {
+      // 400/500: la respuesta trae { ok: false, error }
+      const ctx = (error as { context?: unknown }).context;
+      d = ctx instanceof Response ? await ctx.json().catch(() => null) : null;
+    }
+    if (!d || typeof d !== "object") return { ok: false, error: "red" };
+    if (d.ok !== true) return { ok: false, error: String(d.error ?? "error_interno") };
+    const campos = [d.Ds_SignatureVersion, d.Ds_MerchantParameters, d.Ds_Signature];
+    if (
+      typeof d.url !== "string" ||
+      !URL_REDSYS.test(d.url) ||
+      campos.some((c) => typeof c !== "string" || !c)
+    ) {
+      return { ok: false, error: "error_interno" };
+    }
+    return {
+      ok: true,
+      url: d.url,
+      Ds_SignatureVersion: d.Ds_SignatureVersion,
+      Ds_MerchantParameters: d.Ds_MerchantParameters,
+      Ds_Signature: d.Ds_Signature,
+    };
+  } catch {
+    return { ok: false, error: "red" };
+  }
+}
+
+/** Envía al cliente a Redsys en la misma pestaña con un formulario POST oculto. */
+export function enviarARedsys(r: InicioPago): void {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = r.url;
+  form.style.display = "none";
+  for (const [name, value] of [
+    ["Ds_SignatureVersion", r.Ds_SignatureVersion],
+    ["Ds_MerchantParameters", r.Ds_MerchantParameters],
+    ["Ds_Signature", r.Ds_Signature],
+  ] as const) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
+
+/** Guarda el pedido, pide el pago al servidor y lleva a Redsys. Devuelve el error si no se puede. */
+export async function irAPagar(p: PagoGuardado): Promise<RespuestaError | null> {
+  guardarPago(p);
+  const r = await iniciarPagoRedsys(p.pedido_id, p.email);
+  if (!r.ok) return r;
+  enviarARedsys(r);
+  return null;
+}
+
+/** Errores de iniciar_pago_redsys tras los que hay que crear otro pedido (el actual ya no sirve). */
+export const ERRORES_PEDIDO_NUEVO = [
+  "pedido_no_encontrado",
+  "pedido_no_valido",
+  "demasiados_intentos",
+  "campana_cerrada",
+  "campana_agotada",
+  "franja_no_valida",
+  "franja_completa",
+  "fecha_envio_actualizada",
+];
+
+export function mensajePago(r: RespuestaError): string {
+  switch (r.error) {
+    case "campana_agotada":
+      return "Se han agotado los packs mientras pagabas.";
+    case "campana_cerrada":
+      return "La venta de la campaña ha terminado.";
+    case "franja_completa":
+      return "Tu franja se ha llenado mientras pagabas. Elige otra.";
+    case "franja_no_valida":
+      return "Tu franja ya no está disponible. Elige otra.";
+    case "fecha_envio_actualizada":
+      return "Ha pasado la hora de corte del envío. Revisa el nuevo día de salida y pulsa de nuevo Pagar ahora.";
+    case "pedido_ya_pagado":
+      return "Este pedido ya está pagado.";
+    case "demasiados_intentos":
+      return "Has hecho demasiados intentos de pago con este pedido. Vuelve a hacer el pedido.";
+    case "pedido_no_encontrado":
+    case "pedido_no_valido":
+      return "No hemos podido abrir el pago de este pedido. Vuelve a hacer el pedido.";
+    default:
+      return "No hemos podido abrir la página de pago. Inténtalo otra vez.";
+  }
+}
+
+export type EstadoPago = {
+  ok: true;
+  pago: string;
+  numero: string | null;
+  total: number;
+  ultimo_intento: string | null;
+  puede_reintentar: boolean;
+};
+
+/** Estado real del pago, según el servidor. Única forma de saber si un pedido está pagado. */
+export async function consultarEstadoPago(
+  pedido_id: number,
+  email: string,
+): Promise<EstadoPago | RespuestaError> {
+  try {
+    const { data, error } = await supabaseYLLT.rpc("estado_pago_web", {
+      p_pedido_id: pedido_id,
+      p_email: email,
+    });
+    if (error || !data) return { ok: false, error: "red" };
+    const d = data as Raw;
+    if (d.ok !== true) return { ok: false, error: String(d.error ?? "pedido_no_encontrado") };
+    return {
+      ok: true,
+      pago: String(d.pago ?? ""),
+      numero: (d.numero as string) ?? null,
+      total: num(d.total),
+      ultimo_intento: (d.ultimo_intento as string) ?? null,
+      puede_reintentar: !!d.puede_reintentar,
+    };
+  } catch {
+    return { ok: false, error: "red" };
+  }
+}

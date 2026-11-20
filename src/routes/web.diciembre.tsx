@@ -1,9 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  cargarCampana, cargarConfigWeb, confirmarPedido, fechaEnvioLabel,
-  mensajeError, pedirPresupuesto, plazoLabel,
+  cargarCampana, cargarConfigWeb, confirmarPedido, ERRORES_PEDIDO_NUEVO, fechaEnvioLabel, irAPagar,
+  mensajeError, mensajePago, pedirPresupuesto, plazoLabel,
   type Campana, type ConfigWeb, type DatosPedidoWeb, type Presupuesto, type ResultadoPedido,
 } from "@/lib/checkout-web";
 import { STORE_ID, euro } from "@/lib/menu";
@@ -74,6 +74,17 @@ function Diciembre() {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState<ResultadoPedido | null>(null);
+  const navigate = useNavigate();
+  // Pedido de pasarela ya creado y sin pagar (T-014): si se vuelve a pulsar «Pagar ahora» sin cambiar
+  // nada, se reintenta el pago de ese mismo pedido en vez de crear otro.
+  const pedidoPendiente = useRef<{ pedido_id: number; email: string; firma: string } | null>(null);
+
+  // Al volver atrás desde Redsys con la página guardada por el navegador, el botón vuelve a estar activo.
+  useEffect(() => {
+    const alVolver = (e: PageTransitionEvent) => { if (e.persisted) setSending(false); };
+    window.addEventListener("pageshow", alVolver);
+    return () => window.removeEventListener("pageshow", alVolver);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -159,13 +170,20 @@ function Diciembre() {
     if (!puedePagar || !presupuesto || !config || !presupuesto.fecha_envio) return;
     setSending(true);
     setError(null);
-    const r = await confirmarPedido({
+    const datosPedido: DatosPedidoWeb = {
       ...datos, acepta_condiciones: true, condiciones_version: config.condiciones_version,
       acepta_comercial: aceptaComercial, total_esperado: presupuesto.total,
       fecha_envio_esperada: presupuesto.fecha_envio,
-    });
+    };
+    // Pasarela (T-014): reintento del mismo pedido si no ha cambiado nada.
+    const firmaPedido = JSON.stringify(datosPedido);
+    const previo = pedidoPendiente.current;
+    if (previo && previo.firma === firmaPedido) { await pagarConRedsys(previo.pedido_id, previo.email, firmaPedido); return; }
+    pedidoPendiente.current = null;
+    const r = await confirmarPedido(datosPedido);
+    if (r.ok && r.pago === "pendiente") { await pagarConRedsys(r.pedido_id, cliente.email.trim(), firmaPedido); return; }
     setSending(false);
-    if (r.ok) { registrarPurchase(r); setDone(r); return; }
+    if (r.ok) { setDone(r); return; }
     setError(mensajeError(r));
     if (r.error === "precio_actualizado" || r.error === "fecha_envio_actualizada") {
       setPresupuesto((p) => p ? {
@@ -189,6 +207,19 @@ function Diciembre() {
       setConfig(null);
       setLoadKey((k) => k + 1);
     }
+  }
+
+  // Lleva a Redsys. Si el servidor no deja iniciar el pago, se muestra el motivo y se puede volver a intentar.
+  async function pagarConRedsys(pedido_id: number, emailPedido: string, firmaPedido: string) {
+    pedidoPendiente.current = { pedido_id, email: emailPedido, firma: firmaPedido };
+    const e = await irAPagar({ pedido_id, email: emailPedido, origen: "diciembre" });
+    if (!e) return; // el navegador ya está yendo a Redsys
+    setSending(false);
+    if (e.error === "pedido_ya_pagado") { navigate({ to: "/web/pago", search: { p: pedido_id } }); return; }
+    setError(mensajePago(e));
+    if (ERRORES_PEDIDO_NUEVO.includes(e.error)) pedidoPendiente.current = null;
+    // Nuevo presupuesto: actualiza packs disponibles, venta cerrada o día de salida.
+    if (["campana_agotada", "campana_cerrada", "fecha_envio_actualizada"].includes(e.error)) setQuoteKey((k) => k + 1);
   }
 
   if (loading) return <main className="mx-auto w-full max-w-2xl px-5 py-12"><p role="status" className="text-muted-foreground">Cargando campaña…</p></main>;
@@ -286,18 +317,4 @@ function Diciembre() {
       </section>}
     </main>
   );
-}
-
-/** Purchase solo con pago real confirmado por el servidor; nunca con pago simulado. Una vez por pedido.
- *  El pedido_id solo se usa en este navegador para no repetir el evento: no se envía a Meta. */
-function registrarPurchase(r: ResultadoPedido) {
-  if (r.pago_simulado !== false || r.pago !== "pagado") return;
-  const marca = `yllt_purchase_${r.pedido_id}`;
-  try {
-    if (window.sessionStorage.getItem(marca)) return;
-    window.sessionStorage.setItem(marca, "1");
-  } catch {
-    // sin sessionStorage: se envía igualmente una vez en esta confirmación
-  }
-  track("Purchase", { value: r.total, currency: "EUR" });
 }

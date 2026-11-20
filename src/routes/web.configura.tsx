@@ -3,9 +3,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   cargarConfigWeb,
   confirmarPedido,
+  ERRORES_PEDIDO_NUEVO,
   fechaEnvioLabel,
+  irAPagar,
   itemsParaServidor,
   mensajeError,
+  mensajePago,
   pedirPresupuesto,
   plazoLabel,
   type ConfigWeb,
@@ -176,6 +179,18 @@ function WebConfigura() {
     franja: string | null;
     fecha_envio: string | null;
   } | null>(null);
+  // Pedido de pasarela ya creado y sin pagar (T-014): si se vuelve a pulsar «Pagar ahora» sin cambiar
+  // nada, se reintenta el pago de ese mismo pedido en vez de crear otro.
+  const pedidoPendiente = useRef<{ pedido_id: number; email: string; firma: string } | null>(null);
+
+  // Al volver atrás desde Redsys con la página guardada por el navegador, el botón vuelve a estar activo.
+  useEffect(() => {
+    const alVolver = (e: PageTransitionEvent) => {
+      if (e.persisted) setSending(false);
+    };
+    window.addEventListener("pageshow", alVolver);
+    return () => window.removeEventListener("pageshow", alVolver);
+  }, []);
 
   // Config pública, casillas y presupuesto del servidor.
   const [config, setConfig] = useState<ConfigWeb | null>(null);
@@ -405,7 +420,19 @@ function WebConfigura() {
         ? { fecha_envio_esperada: presupuesto.fecha_envio }
         : {}),
     };
+    // Pasarela (T-014): reintento del mismo pedido si no ha cambiado nada.
+    const firma = JSON.stringify(datos);
+    const previo = pedidoPendiente.current;
+    if (previo && previo.firma === firma) {
+      await pagarConRedsys(previo.pedido_id, previo.email, firma);
+      return;
+    }
+    pedidoPendiente.current = null;
     const r = await confirmarPedido(datos);
+    if (r.ok && r.pago === "pendiente") {
+      await pagarConRedsys(r.pedido_id, email.trim(), firma);
+      return;
+    }
     setSending(false);
     if (r.ok) {
       clearCart();
@@ -442,6 +469,30 @@ function WebConfigura() {
       case "condiciones_version_no_vigente":
         setAceptaCondiciones(false);
         setConfigKey((k) => k + 1);
+        break;
+    }
+  };
+
+  // Lleva a Redsys. Si el servidor no deja iniciar el pago, se muestra el motivo y se puede volver a intentar.
+  const pagarConRedsys = async (pedido_id: number, emailPedido: string, firma: string) => {
+    pedidoPendiente.current = { pedido_id, email: emailPedido, firma };
+    const e = await irAPagar({ pedido_id, email: emailPedido, origen: "configura" });
+    if (!e) return; // el navegador ya está yendo a Redsys
+    setSending(false);
+    if (e.error === "pedido_ya_pagado") {
+      navigate({ to: "/web/pago", search: { p: pedido_id } });
+      return;
+    }
+    setError(mensajePago(e));
+    if (ERRORES_PEDIDO_NUEVO.includes(e.error)) pedidoPendiente.current = null;
+    switch (e.error) {
+      case "fecha_envio_actualizada":
+        setQuoteKey((k) => k + 1);
+        break;
+      case "franja_completa":
+      case "franja_no_valida":
+        setFranja(null);
+        setFranjasKey((k) => k + 1);
         break;
     }
   };
