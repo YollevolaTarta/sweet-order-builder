@@ -1,6 +1,8 @@
 // Página de vuelta desde Redsys (T-014, DEC-011).
 // La vuelta (?r=ok o ?r=ko) no dice si el pago se ha hecho: solo cuenta estado_pago_web (servidor).
 // Esta página nunca cambia nada: solo consulta el estado y, si se puede, reintenta el pago del MISMO pedido.
+// Devoluciones automáticas (T-021, M51): si estado_pago_web trae `devolucion`, se explica al cliente con
+// textos fijos; nunca se muestran motivos, estados ni códigos.
 
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -11,11 +13,13 @@ import {
   irAPagar,
   leerPago,
   mensajePago,
+  type DevolucionPago,
   type EstadoPago,
   type OrigenPago,
 } from "@/lib/checkout-web";
 import { euro } from "@/lib/menu";
 import { track } from "@/lib/meta-pixel";
+import { useWebOrder } from "@/lib/web-order";
 
 type Busqueda = { p?: number; r?: "ok" | "ko" };
 
@@ -35,6 +39,17 @@ export const Route = createFileRoute("/web/pago")({
 
 const INTERVALO_MS = 2000;
 const CONSULTAS = 30; // unos 60 segundos
+
+/** Importe en formato «7,50 €». */
+const importeTxt = (n: number) => n.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+
+/** Texto de la devolución según su estado (textos aprobados en T-021). */
+function textoDevolucion(d: DevolucionPago): string {
+  const importe = importeTxt(d.importe);
+  return d.estado === "completada"
+    ? `Hemos completado la devolución de ${importe} al mismo medio de pago. Dependiendo de tu banco, puede tardar unos días en aparecer en tu cuenta.`
+    : `Estamos gestionando la devolución completa de ${importe} al mismo medio de pago. Dependiendo de tu banco, puede tardar unos días en aparecer. No necesitas hacer nada.`;
+}
 
 /** Sin pagar y sin nada que esperar ni reintentar (pedido cancelado, sin intentos posibles…). */
 const sinSalida = (e: EstadoPago) =>
@@ -56,6 +71,7 @@ function Pago() {
   const [reintentando, setReintentando] = useState(false);
   const [errorReintento, setErrorReintento] = useState<string | null>(null);
   const purchaseEnviado = useRef(false);
+  const order = useWebOrder();
 
   // El email y el origen solo están en esta pestaña (sessionStorage).
   useEffect(() => {
@@ -97,11 +113,13 @@ function Pago() {
         // error de red: se vuelve a intentar en la siguiente consulta
       } else {
         setEstado(e);
+        // Una incidencia sin devolución todavía puede convertirse en devolución automática:
+        // se sigue consultando hasta el límite. Con devolución, la respuesta ya es definitiva.
         const definitivo =
           e.pago === "pagado" ||
-          e.ultimo_intento === "incidencia" ||
+          e.devolucion !== null ||
           e.ultimo_intento === "rechazado" ||
-          sinSalida(e);
+          (sinSalida(e) && e.ultimo_intento !== "incidencia");
         if (definitivo) return;
       }
       if (consultas >= CONSULTAS) {
@@ -240,7 +258,60 @@ function Pago() {
           <p className="text-2xl font-black">Pago confirmado</p>
         )}
         <p className="text-xl font-bold">Total (IVA incluido): {euro(estado.total)}</p>
+        {estado.devolucion?.motivo === "doble_cobro" && (
+          <div className="max-w-sm space-y-2 rounded-lg bg-warn-soft px-4 py-3 text-left">
+            <p className="font-bold">
+              Se te ha cobrado dos veces. Tu pedido sigue confirmado y solo te devolvemos el cargo
+              adicional.
+            </p>
+            <p>{textoDevolucion(estado.devolucion)}</p>
+          </div>
+        )}
         {volver}
+      </Pantalla>
+    );
+  }
+
+  // Devolución automática de un pedido que no está pagado: manda sobre «Estamos revisando tu pago».
+  if (estado?.devolucion) {
+    const d = estado.devolucion;
+    const sinSitio = d.motivo === "sin_disponibilidad";
+    const campana = origen === "diciembre";
+    return (
+      <Pantalla>
+        <p className="max-w-sm text-2xl font-black">
+          {sinSitio ? "No hemos podido confirmar tu pedido" : "Te devolvemos tu pago"}
+        </p>
+        {sinSitio ? (
+          <p className="max-w-sm">
+            {campana
+              ? "Mientras pagabas se agotaron los packs, así que no hemos podido confirmar tu pedido."
+              : "Mientras pagabas se completó la producción en la hora de recogida que elegiste, así que no hemos podido confirmar tu pedido. Puedes hacer otro para otra hora o fecha disponible."}
+          </p>
+        ) : d.motivo === "pedido_no_pendiente" ? (
+          <p className="max-w-sm">
+            Este pedido ya no se podía pagar, si quieres puedes intentar hacer otro pedido.
+          </p>
+        ) : null}
+        <p className="max-w-sm">{textoDevolucion(d)}</p>
+        {sinSitio && !campana && (
+          <Button
+            asChild
+            className="mt-6 h-auto rounded-full bg-yllt-naranja px-8 py-4 text-lg font-extrabold text-yllt-naranja-foreground hover:bg-yllt-naranja/90"
+          >
+            <Link
+              to="/web/configura"
+              search={{ vista: undefined }}
+              onClick={() => {
+                // Pedido nuevo desde cero: nunca se reutiliza este.
+                order.clearCart();
+                order.reset();
+              }}
+            >
+              Hacer un pedido nuevo
+            </Link>
+          </Button>
+        )}
       </Pantalla>
     );
   }

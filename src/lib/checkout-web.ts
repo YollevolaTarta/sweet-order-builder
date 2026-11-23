@@ -404,6 +404,13 @@ export function mensajePago(r: RespuestaError): string {
   }
 }
 
+/** Devolución automática de un cobro (M51, T-021). Solo para elegir los textos: nunca se muestra tal cual. */
+export type DevolucionPago = {
+  motivo: "sin_disponibilidad" | "pedido_no_pendiente" | "doble_cobro";
+  estado: "en_tramite" | "completada";
+  importe: number;
+};
+
 export type EstadoPago = {
   ok: true;
   pago: string;
@@ -411,7 +418,20 @@ export type EstadoPago = {
   total: number;
   ultimo_intento: string | null;
   puede_reintentar: boolean;
+  devolucion: DevolucionPago | null;
 };
+
+const MOTIVOS_DEVOLUCION = ["sin_disponibilidad", "pedido_no_pendiente", "doble_cobro"];
+
+/** Un motivo desconocido cuenta como «sin devolución»: la página se comporta como antes de la M51. */
+function leerDevolucion(v: Raw): DevolucionPago | null {
+  if (!v || typeof v !== "object" || !MOTIVOS_DEVOLUCION.includes(v.motivo)) return null;
+  return {
+    motivo: v.motivo,
+    estado: v.estado === "completada" ? "completada" : "en_tramite",
+    importe: num(v.importe),
+  };
+}
 
 /** Estado real del pago, según el servidor. Única forma de saber si un pedido está pagado. */
 export async function consultarEstadoPago(
@@ -433,6 +453,7 @@ export async function consultarEstadoPago(
       total: num(d.total),
       ultimo_intento: (d.ultimo_intento as string) ?? null,
       puede_reintentar: !!d.puede_reintentar,
+      devolucion: leerDevolucion(d.devolucion),
     };
   } catch {
     return { ok: false, error: "red" };
