@@ -3,8 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   cargarConfigWeb,
   confirmarPedido,
+  consultarEstadoPago,
   ERRORES_PEDIDO_NUEVO,
   fechaEnvioLabel,
+  guardarPago,
   irAPagar,
   itemsParaServidor,
   mensajeError,
@@ -16,6 +18,18 @@ import {
   type Presupuesto,
 } from "@/lib/checkout-web";
 import { STORE_ID, euro } from "@/lib/menu";
+import {
+  almacenLocal,
+  almacenSesion,
+  decidirAlCargar,
+  estadoDeRespuesta,
+  guardarConfigura,
+  guardarDatos,
+  leerDatos,
+  leerLocal,
+  olvidarPedido,
+  prepararPago,
+} from "@/lib/checkout-local";
 import { useIngredientes } from "@/lib/ingredientes";
 import {
   CatalogoPicker,
@@ -179,18 +193,82 @@ function WebConfigura() {
     franja: string | null;
     fecha_envio: string | null;
   } | null>(null);
-  // Pedido de pasarela ya creado y sin pagar (T-014): si se vuelve a pulsar «Pagar ahora» sin cambiar
-  // nada, se reintenta el pago de ese mismo pedido en vez de crear otro.
-  const pedidoPendiente = useRef<{ pedido_id: number; email: string; firma: string } | null>(null);
+  // T-024: el pedido de pasarela ya creado se guarda en el navegador (checkout-local.ts), no en memoria,
+  // para no crear otro al volver de Redsys o recargar. Bloqueo de doble clic en «Pagar ahora».
+  const enCurso = useRef(false);
+  const restaurado = useRef(false);
+  // Solo se guarda después de restaurar, para no pisar lo guardado con el formulario vacío.
+  const [listo, setListo] = useState(false);
 
   // Al volver atrás desde Redsys con la página guardada por el navegador, el botón vuelve a estar activo.
   useEffect(() => {
     const alVolver = (e: PageTransitionEvent) => {
-      if (e.persisted) setSending(false);
+      if (e.persisted) {
+        enCurso.current = false;
+        setSending(false);
+      }
     };
     window.addEventListener("pageshow", alVolver);
     return () => window.removeEventListener("pageshow", alVolver);
   }, []);
+
+  // T-024: reconstrucción al cargar. Primero el servidor (si hay pedido guardado), después lo local.
+  useEffect(() => {
+    if (!order.hidratado || restaurado.current) return;
+    restaurado.current = true;
+    setListo(true);
+    const ahora = Date.now();
+    const seccion = leerLocal(almacenLocal(), ahora).configura;
+    const datos = leerDatos(almacenSesion(), "configura", ahora);
+    if (datos) {
+      setNombre(datos.nombre ?? "");
+      setApellidos(datos.apellidos ?? "");
+      setEmail(datos.email ?? "");
+      setTelefono(datos.telefono ?? "");
+      setDireccion(datos.direccion ?? "");
+      setCodigoPostal(datos.codigo_postal ?? "");
+      setCiudad(datos.ciudad ?? "");
+    }
+    if (!seccion) return;
+    // La franja guardada solo se ofrece; el servidor la vuelve a validar (franjas_disponibles y presupuesto).
+    if (seccion.entrega) setEntrega(seccion.entrega);
+    if (seccion.franja) setFranja(seccion.franja);
+    // El paso solo se restaura si la página se cargó en esta ruta (recarga o vuelta de Redsys).
+    if (vista !== "cesta" && order.rutaInicial === "/web/configura" && seccion.paso && seccion.cesta.length) {
+      setStep(seccion.paso);
+    }
+    const pedido = seccion.pedido;
+    const emailPedido = datos?.email?.trim();
+    if (!pedido || !emailPedido) return; // sin email en esta pestaña se comprueba al pulsar «Pagar ahora»
+    void consultarEstadoPago(pedido.id, emailPedido).then((r) => {
+      const d = decidirAlCargar(estadoDeRespuesta(r));
+      if (d === "ir_a_pago") {
+        guardarPago({ pedido_id: pedido.id, email: emailPedido, origen: "configura" });
+        navigate({ to: "/web/pago", search: { p: pedido.id } });
+      } else if (d === "olvidar") {
+        olvidarPedido(almacenLocal(), "configura", Date.now());
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.hidratado]);
+
+  // T-024: entrega, franja y paso → localStorage (sin datos personales).
+  useEffect(() => {
+    if (!listo) return;
+    const paso = step === "cesta" || step === "checkout" ? step : null;
+    guardarConfigura(almacenLocal(), { entrega, franja, paso }, Date.now());
+  }, [listo, entrega, franja, step]);
+
+  // T-024: datos del formulario → solo sessionStorage (esta pestaña).
+  useEffect(() => {
+    if (!listo) return;
+    guardarDatos(
+      almacenSesion(),
+      "configura",
+      { nombre, apellidos, email, telefono, direccion, codigo_postal: codigoPostal, ciudad },
+      Date.now(),
+    );
+  }, [listo, nombre, apellidos, email, telefono, direccion, codigoPostal, ciudad]);
 
   // Config pública, casillas y presupuesto del servidor.
   const [config, setConfig] = useState<ConfigWeb | null>(null);
@@ -407,7 +485,8 @@ function WebConfigura() {
   };
 
   const confirm = async () => {
-    if (!puedePagar || !presupuesto || !config) return;
+    if (enCurso.current || !puedePagar || !presupuesto || !config) return;
+    enCurso.current = true;
     setSending(true);
     setError(null);
     const datos: DatosPedidoWeb = {
@@ -420,19 +499,34 @@ function WebConfigura() {
         ? { fecha_envio_esperada: presupuesto.fecha_envio }
         : {}),
     };
-    // Pasarela (T-014): reintento del mismo pedido si no ha cambiado nada.
-    const firma = JSON.stringify(datos);
-    const previo = pedidoPendiente.current;
-    if (previo && previo.firma === firma) {
-      await pagarConRedsys(previo.pedido_id, previo.email, firma);
+    // Pasarela (T-014, T-024): si hay un pedido guardado, primero se pregunta al servidor qué pasa con él
+    // (checkout-local.ts, prepararPago). Mismo pedido pendiente y misma cesta → solo un intento nuevo.
+    // Pagado o en revisión → /web/pago. Nunca se crea otro pedido sin consultar el guardado.
+    const emailPedido = email.trim();
+    const prep = await prepararPago("configura", JSON.stringify(datos), emailPedido, {
+      local: almacenLocal(),
+      sesion: almacenSesion(),
+      ahora: Date.now,
+      consultar: consultarEstadoPago,
+      crear: () => confirmarPedido(datos),
+    });
+    if (prep.tipo === "sin_respuesta") {
+      enCurso.current = false;
+      setSending(false);
+      setError(mensajeError({ ok: false, error: "red" }));
       return;
     }
-    pedidoPendiente.current = null;
-    const r = await confirmarPedido(datos);
-    if (r.ok && r.pago === "pendiente") {
-      await pagarConRedsys(r.pedido_id, email.trim(), firma);
+    if (prep.tipo === "ir_a_pago") {
+      guardarPago({ pedido_id: prep.pedidoId, email: emailPedido, origen: "configura" });
+      navigate({ to: "/web/pago", search: { p: prep.pedidoId } });
       return;
     }
+    if (prep.tipo === "pagar") {
+      await pagarConRedsys(prep.pedidoId, emailPedido);
+      return;
+    }
+    const r = prep.respuesta;
+    enCurso.current = false;
     setSending(false);
     if (r.ok) {
       clearCart();
@@ -474,17 +568,17 @@ function WebConfigura() {
   };
 
   // Lleva a Redsys. Si el servidor no deja iniciar el pago, se muestra el motivo y se puede volver a intentar.
-  const pagarConRedsys = async (pedido_id: number, emailPedido: string, firma: string) => {
-    pedidoPendiente.current = { pedido_id, email: emailPedido, firma };
+  const pagarConRedsys = async (pedido_id: number, emailPedido: string) => {
     const e = await irAPagar({ pedido_id, email: emailPedido, origen: "configura" });
     if (!e) return; // el navegador ya está yendo a Redsys
+    enCurso.current = false;
     setSending(false);
     if (e.error === "pedido_ya_pagado") {
       navigate({ to: "/web/pago", search: { p: pedido_id } });
       return;
     }
     setError(mensajePago(e));
-    if (ERRORES_PEDIDO_NUEVO.includes(e.error)) pedidoPendiente.current = null;
+    if (ERRORES_PEDIDO_NUEVO.includes(e.error)) olvidarPedido(almacenLocal(), "configura", Date.now());
     switch (e.error) {
       case "fecha_envio_actualizada":
         setQuoteKey((k) => k + 1);

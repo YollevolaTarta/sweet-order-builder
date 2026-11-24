@@ -9,14 +9,24 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { Button } from "@/components/ui/button";
 import {
   consultarEstadoPago,
+  ERRORES_PEDIDO_NUEVO,
   guardarPago,
   irAPagar,
   leerPago,
   mensajePago,
+  olvidarPago,
   type DevolucionPago,
   type EstadoPago,
   type OrigenPago,
 } from "@/lib/checkout-web";
+import {
+  almacenLocal,
+  almacenSesion,
+  borrarDatos,
+  borrarPorPedido,
+  decidirAlCargar,
+  olvidarPorPedido,
+} from "@/lib/checkout-local";
 import { euro } from "@/lib/menu";
 import { track } from "@/lib/meta-pixel";
 import { useWebOrder } from "@/lib/web-order";
@@ -71,7 +81,56 @@ function Pago() {
   const [reintentando, setReintentando] = useState(false);
   const [errorReintento, setErrorReintento] = useState<string | null>(null);
   const purchaseEnviado = useRef(false);
+  const enCurso = useRef(false);
+  const [revisarPedido, setRevisarPedido] = useState(false);
   const order = useWebOrder();
+
+  // T-024: lo local se ajusta a lo que dice el servidor, nunca al revés.
+  // Pagado → la cesta de ese pedido y sus datos personales dejan de existir en el navegador.
+  // Sin salida (cancelado, devolución, sin intentos) → se olvida el vínculo con el pedido y se conserva la cesta.
+  useEffect(() => {
+    if (!p || !estado || !order.hidratado) return;
+    const ahora = Date.now();
+    if (estado.pago === "pagado") {
+      const o = borrarPorPedido(almacenLocal(), p, ahora);
+      if (o) borrarDatos(almacenSesion(), o, ahora);
+      if (o === "configura") {
+        order.clearCart();
+        order.reset();
+      }
+    } else if (decidirAlCargar(estado) === "olvidar") {
+      olvidarPorPedido(almacenLocal(), p, ahora);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p, estado, order.hidratado]);
+
+  // T-024: empezar de cero. Limpia el estado local del pedido anterior; el pedido del servidor no se toca.
+  const pedidoNuevo = () => {
+    const ahora = Date.now();
+    if (p) borrarPorPedido(almacenLocal(), p, ahora);
+    borrarDatos(almacenSesion(), origen === "diciembre" ? "diciembre" : "configura", ahora);
+    olvidarPago();
+    if (origen !== "diciembre") {
+      order.clearCart();
+      order.reset();
+    }
+  };
+  const botonPedidoNuevo = (
+    <Button
+      asChild
+      className="mt-6 h-auto rounded-full bg-yllt-naranja px-8 py-4 text-lg font-extrabold text-yllt-naranja-foreground hover:bg-yllt-naranja/90"
+    >
+      {origen === "diciembre" ? (
+        <Link to="/web/diciembre" onClick={pedidoNuevo}>
+          Hacer un pedido nuevo
+        </Link>
+      ) : (
+        <Link to="/web/configura" search={{ vista: undefined }} onClick={pedidoNuevo}>
+          Hacer un pedido nuevo
+        </Link>
+      )}
+    </Button>
+  );
 
   // El email y el origen solo están en esta pestaña (sessionStorage).
   useEffect(() => {
@@ -88,7 +147,10 @@ function Pago() {
   // Al volver atrás desde Redsys con la página guardada por el navegador, el botón vuelve a estar activo.
   useEffect(() => {
     const alVolver = (e: PageTransitionEvent) => {
-      if (e.persisted) setReintentando(false);
+      if (e.persisted) {
+        enCurso.current = false;
+        setReintentando(false);
+      }
     };
     window.addEventListener("pageshow", alVolver);
     return () => window.removeEventListener("pageshow", alVolver);
@@ -152,17 +214,24 @@ function Pago() {
   }, [p, estado, origen]);
 
   const reintentar = async () => {
-    if (!p || !email) return;
+    if (!p || !email || enCurso.current) return; // T-024: un segundo clic no hace nada
+    enCurso.current = true;
     setReintentando(true);
     setErrorReintento(null);
     const e = await irAPagar({ pedido_id: p, email, origen });
     if (!e) return; // el navegador ya está yendo a Redsys
+    enCurso.current = false;
     setReintentando(false);
     if (e.error === "pedido_ya_pagado") {
       setRonda((n) => n + 1);
       return;
     }
     setErrorReintento(mensajePago(e));
+    // T-024: este pedido ya no sirve (franja llena, campaña agotada…): se suelta y se conserva la cesta.
+    if (ERRORES_PEDIDO_NUEVO.includes(e.error)) {
+      olvidarPorPedido(almacenLocal(), p, Date.now());
+      setRevisarPedido(true);
+    }
   };
 
   const verEstado = (ev: FormEvent) => {
@@ -267,6 +336,7 @@ function Pago() {
             <p>{textoDevolucion(estado.devolucion)}</p>
           </div>
         )}
+        {botonPedidoNuevo}
         {volver}
       </Pantalla>
     );
@@ -294,24 +364,10 @@ function Pago() {
           </p>
         ) : null}
         <p className="max-w-sm">{textoDevolucion(d)}</p>
-        {sinSitio && !campana && (
-          <Button
-            asChild
-            className="mt-6 h-auto rounded-full bg-yllt-naranja px-8 py-4 text-lg font-extrabold text-yllt-naranja-foreground hover:bg-yllt-naranja/90"
-          >
-            <Link
-              to="/web/configura"
-              search={{ vista: undefined }}
-              onClick={() => {
-                // Pedido nuevo desde cero: nunca se reutiliza este.
-                order.clearCart();
-                order.reset();
-              }}
-            >
-              Hacer un pedido nuevo
-            </Link>
-          </Button>
-        )}
+        {/* Pedido nuevo desde cero: nunca se reutiliza este. En campaña agotada, sin botón (T-021). */}
+        {sinSitio && !campana && botonPedidoNuevo}
+        {/* T-024 (mejora pendiente de T-021): también en «Te devolvemos tu pago». */}
+        {d.motivo === "pedido_no_pendiente" && botonPedidoNuevo}
       </Pantalla>
     );
   }
@@ -344,6 +400,18 @@ function Pago() {
             className="mt-2 h-auto rounded-full bg-yllt-naranja px-8 py-4 text-lg font-extrabold text-yllt-naranja-foreground hover:bg-yllt-naranja/90"
           >
             {reintentando ? "Abriendo el pago…" : "Volver a intentar el pago"}
+          </Button>
+        )}
+        {/* T-024: si este pedido ya no se puede pagar, se vuelve a la cesta guardada para hacer otro. */}
+        {(revisarPedido || (estado && !puede)) && (
+          <Button asChild variant="outline" className="mt-2 h-auto rounded-full px-8 py-4 text-lg font-extrabold">
+            {origen === "diciembre" ? (
+              <Link to="/web/diciembre">Revisar mi pedido</Link>
+            ) : (
+              <Link to="/web/configura" search={{ vista: "cesta" }}>
+                Revisar mi pedido
+              </Link>
+            )}
           </Button>
         )}
         {volver}

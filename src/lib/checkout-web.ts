@@ -276,6 +276,15 @@ export function guardarPago(p: PagoGuardado): void {
   }
 }
 
+/** T-024: «Hacer un pedido nuevo» olvida el pedido anterior de esta pestaña (no toca el servidor). */
+export function olvidarPago(): void {
+  try {
+    window.sessionStorage.removeItem(CLAVE_PAGO);
+  } catch {
+    // nada
+  }
+}
+
 /** Pedido guardado en esta pestaña, solo si es el de la URL. */
 export function leerPago(pedidoId: number): PagoGuardado | null {
   try {

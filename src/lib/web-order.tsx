@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { supabaseYLLT, fetchRecetasYPacks, type Pack, type Receta, type Formato } from "@/lib/supabase-yllt";
 import { FORMATS, STORE_ID } from "@/lib/menu";
 import type { CartItem } from "@/lib/cart";
+import { almacenLocal, guardarConfigura, leerLocal } from "@/lib/checkout-local";
 
 // En la web solo se venden tarta en lata y cake shake (nunca tarta abierta,
 // por eso no hay pregunta de foto y foto siempre es false).
@@ -31,6 +32,10 @@ type Ctx = {
   clearCart: () => void;
   resetSeleccion: () => void;
   reset: () => void;
+  /** T-024: la cesta guardada en el navegador ya se ha leído (siempre tras montar, nunca en el servidor). */
+  hidratado: boolean;
+  /** T-024: ruta con la que se cargó la página; solo esa ruta puede restaurar el paso guardado. */
+  rutaInicial: string | null;
 };
 
 const WebOrderContext = createContext<Ctx | null>(null);
@@ -46,6 +51,21 @@ export function WebOrderProvider({ children }: { children: ReactNode }) {
   const [recetaId, setRecetaId] = useState<number | null>(null);
   const [packId, setPackId] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [hidratado, setHidratado] = useState(false);
+  const rutaInicial = useRef<string | null>(null);
+
+  // T-024: al cargar la página se recupera la cesta guardada (sin datos personales; caduca a las 24 h).
+  useEffect(() => {
+    rutaInicial.current = window.location.pathname;
+    const guardada = leerLocal(almacenLocal(), Date.now()).configura?.cesta ?? [];
+    if (guardada.length) setCart(guardada);
+    setHidratado(true);
+  }, []);
+
+  // T-024: cada cambio de la cesta se guarda (cesta vacía y sin pedido → se borra la clave).
+  useEffect(() => {
+    if (hidratado) guardarConfigura(almacenLocal(), { cesta: cart }, Date.now());
+  }, [cart, hidratado]);
 
   useEffect(() => {
     let active = true;
@@ -99,8 +119,10 @@ export function WebOrderProvider({ children }: { children: ReactNode }) {
         setRecetaId(null);
         setPackId(null);
       },
+      hidratado,
+      rutaInicial: rutaInicial.current,
     }),
-    [recetas, packs, loading, mode, formatId, creamId, toppingIds, recetaId, packId, cart],
+    [recetas, packs, loading, mode, formatId, creamId, toppingIds, recetaId, packId, cart, hidratado],
   );
 
   return <WebOrderContext.Provider value={value}>{children}</WebOrderContext.Provider>;
