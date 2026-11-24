@@ -73,7 +73,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
+  head: ({ matches }) => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
@@ -84,12 +84,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Corben:wght@400;700&family=Inter:wght@400;500;600;700;800;900&display=swap",
-      },
+      // /web/cancelar (T-022): sin recursos de otros dominios; esa página usa la fuente del sistema.
+      ...(matches.some((m) => (m.routeId as string) === "/web_/cancelar")
+        ? []
+        : [
+            { rel: "preconnect", href: "https://fonts.googleapis.com" },
+            {
+              rel: "preconnect",
+              href: "https://fonts.gstatic.com",
+              crossOrigin: "anonymous" as const,
+            },
+            {
+              rel: "stylesheet",
+              href: "https://fonts.googleapis.com/css2?family=Corben:wght@400;700&family=Inter:wght@400;500;600;700;800;900&display=swap",
+            },
+          ]),
       { rel: "icon", href: "/favicon.png", type: "image/png" },
     ],
   }),

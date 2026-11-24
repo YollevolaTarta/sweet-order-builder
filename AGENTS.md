@@ -26,7 +26,7 @@ Antes de realizar cambios estructurales o funcionales relevantes, consulta `yllt
 - Configuración pública (textos y versiones de las casillas legales, precios base, envío, `pago_web_modo`) solo por `config_web_publica()`. No escribir esos textos en el código.
 - La web NUNCA hace INSERT directo en `pedidos`, `lineas_pedido` ni `pedido_clientes`, ni envía precios, totales, numeración ni estado de pago.
 - `pago_web_modo = 'simulado'`: solo desarrollo; prohibido vender así. El pago real aún no está integrado y el proveedor está sin decidir.
-- Cancelación online desactivada: no crear enlaces, botones ni páginas de cancelación.
+- Cancelación online: solo la página `/web/cancelar` (T-022). El botón del email lo activa el servidor, nunca la web.
 
 ## Tablet y QR
 
